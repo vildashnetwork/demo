@@ -77,7 +77,7 @@ app.use(morgan(":method :url :status :response-time ms - :res[content-length]"))
 
 // CORS middleware
 const allowedOrigins = [
-    "https://manfess-brand.vercel.app",
+    "https://demoschool.vildashnetwork.com",
     "https://manfess.vildashnetwork.com",
     "http://localhost:5173",
     "http://localhost:3000",
@@ -308,7 +308,7 @@ const startServer = async () => {
                         // Another instance/device already uses this name ->
                         // retry once with a unique name instead of crashing.
                         if (/already in use/i.test(error.message || '') && name === SERVICE_NAME) {
-                            try { service.stop(() => {}); } catch { /* ignore */ }
+                            try { service.stop(() => { }); } catch { /* ignore */ }
                             const uniqueName = `${SERVICE_NAME} (${process.pid})`;
                             console.log(`📡 Retrying mDNS advertisement as "${uniqueName}"...`);
                             advertise(uniqueName);
