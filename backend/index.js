@@ -15,6 +15,7 @@ import student from "./routes/student.js";
 import user from "./routes/user.js";
 import subject from "./routes/subject.js";
 import timetableRoutes from './routes/timetable.js';
+import studentAttendanceRoutes from './routes/studentAttendance.js';
 import teacherAttendanceRoutes from './routes/teacherAttendance.js';
 import teacherSalaryRoutes from './routes/teacherSalary.js';
 import schoolSettings from "./routes/schoolSettings.js";
@@ -25,8 +26,8 @@ const bonjour = Bonjour();
 
 // ==================== CONFIGURATION ====================
 const PORT = process.env.PORT || 5000;
-const SERVICE_NAME = process.env.SERVICE_NAME || 'Manfess';
-const HOSTNAME = process.env.HOSTNAME || 'manfess';
+const SERVICE_NAME = process.env.SERVICE_NAME || 'DEMO';
+const HOSTNAME = process.env.HOSTNAME || 'DEMO';
 const MONGOURL = process.env.MONGOURI;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
@@ -205,6 +206,9 @@ app.use("/api", subject);
 app.use("/api", schoolSettings);
 
 app.use("/api", timetableRoutes);
+// Student attendance must be mounted before the staff register so that
+// /api/attendance/students/... is never captured by /api/attendance/:id
+app.use("/api", studentAttendanceRoutes);
 app.use("/api", teacherAttendanceRoutes);
 app.use("/api", teacherSalaryRoutes);
 // 404 handler for undefined routes

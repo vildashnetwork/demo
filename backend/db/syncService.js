@@ -8,6 +8,7 @@
 import Mark from "../models/Mark.js";
 import SchoolClass from "../models/SchoolClass.js";
 import Student from "../models/Students.js";
+import StudentAttendance from "../models/StudentAttendance.js";
 import Subject from "../models/Subject.js";
 import TeacherAttendance from "../models/TeacherAttendance.js";
 import TeacherSalary from "../models/TeacherSalary.js";
@@ -21,7 +22,7 @@ const BATCH_SIZE = 500;  // documents per bulk write
 
 // All collections that participate in the sync
 export const SYNC_MODELS = [
-    Mark, SchoolClass, Student, Subject, TeacherAttendance, TeacherSalary, Timetable, User
+    Mark, SchoolClass, Student, StudentAttendance, Subject, TeacherAttendance, TeacherSalary, Timetable, User
 ].map((model) => ({ name: model.modelName, collection: model.collection.name }));
 
 const getTime = (value) => (value ? new Date(value).getTime() : 0);

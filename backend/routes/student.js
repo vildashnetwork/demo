@@ -1,8 +1,44 @@
 import express from "express";
 import mongoose from "mongoose";
 import Student from "../models/Students.js";
+import {
+    generateMatricule,
+    previewMatricule,
+    backfillMatricules,
+    auditMatricules,
+    getMatriculePrefix,
+    enrollmentYearOf
+} from "../services/matriculeService.js";
 
 const router = express.Router();
+
+/**
+ * Clean the matricule coming from an update payload:
+ * - an empty value is dropped (the student keeps the number he already has)
+ * - a value already used by another student is rejected
+ * @param {object} studentData the update payload
+ * @param {string} [ignoreId] id of the student being updated
+ * @returns {{payload: object, conflict?: {fullName: string, _id: any}}}
+ */
+const sanitizeMatriculePayload = async (studentData = {}, ignoreId = null) => {
+    const payload = { ...studentData };
+    if (!Object.prototype.hasOwnProperty.call(payload, "matricule")) return { payload };
+
+    const value = payload.matricule ? String(payload.matricule).trim().toUpperCase() : "";
+    if (!value) {
+        delete payload.matricule;
+        return { payload };
+    }
+    payload.matricule = value;
+
+    const filter = { matricule: value };
+    if (ignoreId) filter._id = { $ne: ignoreId };
+
+    const conflict = await Student.findOne(filter).select("_id fullName").lean();
+    if (conflict) return { payload, conflict };
+    return { payload };
+};
+
 
 // ==================== GET ROUTES ====================
 
@@ -23,6 +59,70 @@ router.get("/students", async (req, res) => {
         });
     }
 });
+// GET - matricule series info: prefix, the number the next student will get
+// and how many students still have to be numbered. MUST stay declared before
+// "/students/:id" (express matches in declaration order).
+router.get("/students/next-matricule", async (req, res) => {
+    try {
+        const preview = await previewMatricule({
+            enrollmentYear: req.query.enrollmentYear,
+            registrationDate: req.query.registrationDate
+        });
+        res.status(200).json({ success: true, data: preview });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error previewing the next matricule", error: error.message });
+    }
+});
+
+// GET - matricule health: prefix, coverage of the existing students
+router.get("/students/matricule-info", async (req, res) => {
+    try {
+        const [withMatricule, withoutMatricule] = await Promise.all([
+            Student.countDocuments({ matricule: { $nin: [null, ""] } }),
+            Student.countDocuments({ $or: [{ matricule: null }, { matricule: "" }] })
+        ]);
+
+        const preview = await previewMatricule({ registrationDate: req.query.registrationDate });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                prefix: getMatriculePrefix(),
+                nextMatricule: preview.matricule,
+                studentsWithMatricule: withMatricule,
+                studentsWithoutMatricule: withoutMatricule
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error fetching matricule info", error: error.message });
+    }
+});
+
+// GET - a student by his matricule (exact match, then partial match)
+router.get("/students/by-matricule/:matricule", async (req, res) => {
+    try {
+        const value = String(req.params.matricule || "").trim().toUpperCase();
+        if (!value) {
+            return res.status(400).json({ success: false, message: "A matricule is required" });
+        }
+
+        const exact = await Student.findOne({ matricule: value }).lean();
+        if (exact) return res.status(200).json({ success: true, count: 1, data: exact });
+
+        const partial = await Student.find({ matricule: { $regex: value, $options: "i" } })
+            .sort({ matricule: 1 })
+            .limit(20)
+            .lean();
+
+        if (!partial.length) {
+            return res.status(404).json({ success: false, message: `No student with matricule ${value}` });
+        }
+        return res.status(200).json({ success: true, count: partial.length, data: partial });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error searching the matricule", error: error.message });
+    }
+});
+
 
 // GET a single student by ID
 router.get("/students/:id", async (req, res) => {
@@ -180,12 +280,15 @@ router.get("/students/fully-paid", async (req, res) => {
     }
 });
 
-// GET search students by name
+// GET search students by name or matricule
 router.get("/students/search/:name", async (req, res) => {
     try {
         const { name } = req.params;
         const students = await Student.find({
-            fullName: { $regex: name, $options: 'i' }
+            $or: [
+                { fullName: { $regex: name, $options: 'i' } },
+                { matricule: { $regex: name, $options: 'i' } }
+            ]
         }).sort({ fullName: 1 });
 
         res.status(200).json({
@@ -276,6 +379,16 @@ router.post("/students", async (req, res) => {
             });
         }
 
+        // A matricule supplied by the client is already taken
+        if (error.name === "DuplicateMatricule") {
+            return res.status(409).json({
+                success: false,
+                message: error.message,
+                matricule: error.matricule,
+                conflict: error.conflict
+            });
+        }
+
         res.status(500).json({
             success: false,
             message: "Error creating student",
@@ -327,7 +440,20 @@ router.post("/students/bulk", async (req, res) => {
             });
         }
 
-        const createdStudents = await Student.insertMany(validStudents);
+        // insertMany() does NOT run the "save" middleware, so the matricules
+        // have to be reserved explicitly here.
+        const numberedStudents = [];
+        for (const data of validStudents) {
+            const payload = { ...data };
+            if (!payload.enrollmentYear) payload.enrollmentYear = enrollmentYearOf(payload);
+            if (!payload.matricule) {
+                // eslint-disable-next-line no-await-in-loop
+                payload.matricule = await generateMatricule(payload);
+            }
+            numberedStudents.push(payload);
+        }
+
+        const createdStudents = await Student.insertMany(numberedStudents);
 
         res.status(201).json({
             success: true,
@@ -401,6 +527,83 @@ router.post("/students/:id/pay-fees", async (req, res) => {
         });
     }
 });
+// POST - give a matricule to every student that does not have one yet
+// body: { dryRun?: boolean }
+router.post("/students/backfill-matricules", async (req, res) => {
+    try {
+        const dryRun = req.body?.dryRun === true || req.query.dryRun === "true";
+        const result = await backfillMatricules({ dryRun });
+
+        res.status(200).json({
+            success: true,
+            message: dryRun
+                ? `${result.assigned} student(s) would receive a matricule`
+                : `${result.assigned} matricule(s) generated`,
+            data: result
+        });
+    } catch (error) {
+        console.error("Error backfilling matricules:", error);
+        res.status(500).json({ success: false, message: "Error generating the missing matricules", error: error.message });
+    }
+});
+
+// POST - check the matricule series; body: { fix?: boolean } re-issues the
+// duplicates and fills the missing numbers.
+router.post("/students/audit-matricules", async (req, res) => {
+    try {
+        const fix = req.body?.fix === true || req.query.fix === "true";
+        const result = await auditMatricules({ fix });
+
+        res.status(200).json({
+            success: true,
+            message: fix
+                ? `Matricules repaired (${result.reassigned.length} reassigned, ${result.backfilled} generated)`
+                : `${result.missing.length} student(s) without matricule, ${result.duplicates.length} duplicate(s)`,
+            data: result
+        });
+    } catch (error) {
+        console.error("Error auditing matricules:", error);
+        res.status(500).json({ success: false, message: "Error auditing the matricules", error: error.message });
+    }
+});
+
+// POST - (re)assign the matricule of one student
+// body: { force?: boolean } — without force, an existing matricule is kept.
+router.post("/students/:id/assign-matricule", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const force = req.body?.force === true;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "Invalid student ID format" });
+        }
+
+        const student = await Student.findById(id);
+        if (!student) return res.status(404).json({ success: false, message: "Student not found" });
+
+        if (student.matricule && !force) {
+            return res.status(200).json({
+                success: true,
+                message: "Student already has a matricule",
+                data: student
+            });
+        }
+
+        student.enrollmentYear = enrollmentYearOf(student);
+        student.matricule = await generateMatricule(student);
+        await student.save();
+
+        res.status(200).json({
+            success: true,
+            message: `Matricule ${student.matricule} assigned to ${student.fullName}`,
+            data: student
+        });
+    } catch (error) {
+        console.error("Error assigning a matricule:", error);
+        res.status(500).json({ success: false, message: "Error assigning the matricule", error: error.message });
+    }
+});
+
 
 // ==================== PUT ROUTES ====================
 
@@ -426,10 +629,28 @@ router.put("/students/:id", async (req, res) => {
             });
         }
 
-        // NO DUPLICATE CHECK - Just update
+        // Keep the matricule safe: an empty value never erases it, and a value
+        // already used by another student is rejected.
+        const { payload, conflict } = await sanitizeMatriculePayload(studentData, id);
+        if (conflict) {
+            return res.status(409).json({
+                success: false,
+                message: `Matricule ${payload.matricule} is already used by ${conflict.fullName}`,
+                matricule: payload.matricule,
+                conflict
+            });
+        }
+
+        // Self-heal: a student created before the matricule series receives
+        // his number the first time his record is edited.
+        if (!payload.matricule && !existingStudent.matricule) {
+            payload.enrollmentYear = payload.enrollmentYear || enrollmentYearOf(existingStudent);
+            payload.matricule = await generateMatricule(payload);
+        }
+
         const updatedStudent = await Student.findByIdAndUpdate(
             id,
-            studentData,
+            payload,
             {
                 new: true,
                 runValidators: true
@@ -483,9 +704,25 @@ router.patch("/students/:id", async (req, res) => {
         }
 
         // NO DUPLICATE CHECK - Students can have same name and parent phone
+        // (the matricule, however, must stay unique)
+        const { payload, conflict } = await sanitizeMatriculePayload(studentData, id);
+        if (conflict) {
+            return res.status(409).json({
+                success: false,
+                message: `Matricule ${payload.matricule} is already used by ${conflict.fullName}`,
+                matricule: payload.matricule,
+                conflict
+            });
+        }
+
+        if (!payload.matricule && !existingStudent.matricule) {
+            payload.enrollmentYear = payload.enrollmentYear || enrollmentYearOf(existingStudent);
+            payload.matricule = await generateMatricule(payload);
+        }
+
         const updatedStudent = await Student.findByIdAndUpdate(
             id,
-            studentData,
+            payload,
             {
                 new: true,
                 runValidators: true

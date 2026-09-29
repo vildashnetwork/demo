@@ -1,10 +1,27 @@
 import mongoose from "mongoose"
 import { syncTombstonePlugin } from "../db/syncPlugin.js";
+import { generateMatricule, enrollmentYearOf } from "../services/matriculeService.js";
 
 const studentschema = new mongoose.Schema({
     fullName: {
         type: String,
         required: true
+    },
+    // School admission number (matricule). Generated automatically when the
+    // student is created (see services/matriculeService.js). Stored as
+    // uppercase text; the "admissionNumber" virtual exposes the same value to
+    // the existing screens/report cards.
+    matricule: {
+        type: String,
+        trim: true,
+        uppercase: true,
+        default: ""
+    },
+    // Calendar year the student was enrolled in (drives the matricule series)
+    enrollmentYear: {
+        type: Number,
+        min: [1900, "Enrollment year looks invalid"],
+        max: [2999, "Enrollment year looks invalid"]
     },
     gender: {
         type: String,
@@ -52,7 +69,52 @@ const studentschema = new mongoose.Schema({
         required: true
     }
 
-}, { timestamps: true })
+}, {
+    timestamps: true,
+    // Expose the "admissionNumber" virtual in API responses (res.json)
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+})
+
+// ==================== MATRICULE (admission number) ====================
+// "admissionNumber" is kept as an alias of "matricule" because the report
+// cards and the mark entry screen already display that label.
+studentschema.virtual("admissionNumber")
+    .get(function () {
+        return this.matricule || "";
+    })
+    // Allow the older screens to POST { admissionNumber: "MFS-2025-0001" }
+    .set(function (value) {
+        if (value) this.matricule = String(value).trim().toUpperCase();
+    });
+
+// Fast matricule lookups (search box, report cards, barcode scanning)
+studentschema.index({ matricule: 1 });
+studentschema.index({ enrollmentYear: 1 });
+
+// Generate the matricule automatically for every new student, and refuse a
+// matricule that is already used by another student.
+studentschema.pre("save", async function () {
+    if (this.isNew && !this.matricule) {
+        if (!this.enrollmentYear) this.enrollmentYear = enrollmentYearOf(this);
+        this.matricule = await generateMatricule(this);
+    }
+
+    if (this.isModified("matricule") && this.matricule) {
+        const taken = await mongoose.model("Student").findOne({
+            matricule: this.matricule,
+            _id: { $ne: this._id }
+        }).select("_id fullName").lean();
+
+        if (taken) {
+            const error = new Error(`Matricule ${this.matricule} is already used by ${taken.fullName}`);
+            error.name = "DuplicateMatricule";
+            error.matricule = this.matricule;
+            error.conflict = taken;
+            throw error;
+        }
+    }
+});
 
 // Record deletions for the offline/online sync
 studentschema.plugin(syncTombstonePlugin);
