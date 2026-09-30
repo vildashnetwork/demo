@@ -25,6 +25,11 @@ interface SchoolClass {
   cycle: string;
   acedemicYear: string;
   classMasterId: string;
+  ratePerPeriod: number;
+  tuitionFee: number;
+  tuitionInstallments: number;
+  registrationFeeRequired: boolean;
+  registrationFeeAmount: number;
 }
 
 interface Teacher {
@@ -160,7 +165,12 @@ export function ClassesPage() {
           department: c.department,
           cycle: c.cycle,
           acedemicYear: c.acedemicYear,
-          classMasterId: c.classMasterId || ""
+          classMasterId: c.classMasterId || "",
+          ratePerPeriod: c.ratePerPeriod ?? (c.cycle === "1st Cycle" ? 500 : 700),
+          tuitionFee: Number(c.tuitionFee) || 0,
+          tuitionInstallments: Number(c.tuitionInstallments) || 1,
+          registrationFeeRequired: Boolean(c.registrationFeeRequired),
+          registrationFeeAmount: Number(c.registrationFeeAmount) || 0,
         }));
         setClasses(mappedClasses);
       }
@@ -314,7 +324,12 @@ export function ClassesPage() {
         department: schoolClass.department,
         cycle: schoolClass.cycle,
         acedemicYear: schoolClass.acedemicYear,
-        classMasterId: schoolClass.classMasterId
+        classMasterId: schoolClass.classMasterId,
+        ratePerPeriod: Number(schoolClass.ratePerPeriod) || 0,
+        tuitionFee: Number(schoolClass.tuitionFee),
+        tuitionInstallments: Number(schoolClass.tuitionInstallments),
+        registrationFeeRequired: schoolClass.registrationFeeRequired,
+        registrationFeeAmount: schoolClass.registrationFeeRequired ? Number(schoolClass.registrationFeeAmount) : 0,
       };
 
       console.log("Class data to save:", classData);
@@ -386,9 +401,9 @@ export function ClassesPage() {
         <p className="text-sm text-black/60 mt-1">Cameroonian secondary structure · Forms 1–Upper 6th · Arts / Science / Commercial</p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
         {/* Classes Table */}
-        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden max-h-[620px] flex flex-col">
           <div className="px-5 py-4 border-b border-stone-200 flex items-center justify-between">
             <h3 className="font-display font-bold">
               Classes ({filteredClasses.length}{hasClassFilters ? ` of ${classes.length}` : ""})
@@ -466,13 +481,17 @@ export function ClassesPage() {
               )}
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[470px]">
             <table className="w-full text-sm">
-              <thead className="bg-stone-50 text-left text-[10px] uppercase tracking-widest text-black/50 font-bold">
+              <thead className="bg-stone-50 text-left text-[10px] uppercase tracking-widest text-black/50 font-bold sticky top-0 z-10">
                 <tr>
                   <th className="px-5 py-3">Class</th>
                   <th className="px-5 py-3">Department</th>
                   <th className="px-5 py-3">Cycle</th>
+                  <th className="px-5 py-3">Rate / Period</th>
+                  <th className="px-5 py-3">Tuition</th>
+                  <th className="px-5 py-3">Installments</th>
+                  <th className="px-5 py-3">Registration</th>
                   <th className="px-5 py-3">Academic Year</th>
                   {canEdit && <th className="px-5 py-3 text-right">Actions</th>}
                 </tr>
@@ -487,6 +506,10 @@ export function ClassesPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3">{c.cycle}</td>
+                    <td className="px-5 py-3 text-sm font-semibold">{c.ratePerPeriod.toLocaleString()} FRS</td>
+                    <td className="px-5 py-3 text-sm font-semibold">{c.tuitionFee.toLocaleString()} XAF</td>
+                    <td className="px-5 py-3 text-sm">{c.tuitionInstallments}</td>
+                    <td className="px-5 py-3 text-xs">{c.registrationFeeRequired ? `${c.registrationFeeAmount.toLocaleString()} XAF required` : "Not required"}</td>
                     <td className="px-5 py-3 text-xs">{c.acedemicYear}</td>
                     {canEdit && (
                       <td className="px-5 py-3 text-right">
@@ -513,7 +536,7 @@ export function ClassesPage() {
                 ))}
                 {filteredClasses.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-5 py-8 text-center text-black/40">
+                    <td colSpan={canEdit ? 9 : 8} className="px-5 py-8 text-center text-black/40">
                       {classes.length === 0
                         ? 'No classes found. Click "Add Class" to create one.'
                         : "No classes match your filters."}
@@ -526,7 +549,7 @@ export function ClassesPage() {
         </div>
 
         {/* Subjects Table */}
-        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden max-h-[620px] flex flex-col">
           <div className="px-5 py-4 border-b border-stone-200 flex items-center justify-between">
             <h3 className="font-display font-bold">
               Subjects ({filteredSubjects.length}{hasSubjectFilters ? ` of ${subjects.length}` : ""})
@@ -604,9 +627,9 @@ export function ClassesPage() {
               )}
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[470px]">
             <table className="w-full text-sm">
-              <thead className="bg-stone-50 text-left text-[10px] uppercase tracking-widest text-black/50 font-bold">
+              <thead className="bg-stone-50 text-left text-[10px] uppercase tracking-widest text-black/50 font-bold sticky top-0 z-10">
                 <tr>
                   <th className="px-5 py-3">Subject</th>
                   <th className="px-5 py-3">Code</th>
@@ -713,7 +736,12 @@ export function ClassesPage() {
             department: "Science",
             cycle: "1st Cycle",
             acedemicYear: "2024-2025",
-            classMasterId: ""
+            classMasterId: "",
+            ratePerPeriod: 500,
+            tuitionFee: 0,
+            tuitionInstallments: 1,
+            registrationFeeRequired: false,
+            registrationFeeAmount: 0,
           }}
           teachers={teachers}
           onSave={upsertClass}
@@ -979,6 +1007,18 @@ function ClassDialog({
       toast.error("Please select an academic year");
       return;
     }
+    if (form.className !== "Graduated" && form.tuitionFee <= 0) {
+      toast.error("Set a tuition amount greater than zero");
+      return;
+    }
+    if (!Number.isInteger(form.tuitionInstallments) || form.tuitionInstallments < 1 || form.tuitionInstallments > 12) {
+      toast.error("Choose between 1 and 12 tuition installments");
+      return;
+    }
+    if (form.registrationFeeRequired && form.registrationFeeAmount <= 0) {
+      toast.error("Set the registration fee amount or turn off the registration fee requirement");
+      return;
+    }
 
 
     setSaving(true);
@@ -993,7 +1033,7 @@ function ClassDialog({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={onCancel}>
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-display font-bold text-xl mb-5">
           {initial.className ? "Edit Class" : "Add Class"}
         </h3>
@@ -1030,7 +1070,16 @@ function ClassDialog({
           <Field label="Cycle*">
             <select
               value={form.cycle}
-              onChange={(e) => set("cycle", e.target.value)}
+              onChange={(e) => {
+                const nextCycle = e.target.value;
+                setForm((current) => ({
+                  ...current,
+                  cycle: nextCycle,
+                  ratePerPeriod: current.ratePerPeriod === (current.cycle === "1st Cycle" ? 500 : 700)
+                    ? nextCycle === "1st Cycle" ? 500 : 700
+                    : current.ratePerPeriod,
+                }));
+              }}
               className={inputCls}
               required
             >
@@ -1068,6 +1117,67 @@ function ClassDialog({
               ))}
             </select>
           </Field>
+
+          <Field label="Teacher Pay Per Period (FRS)*">
+            <input
+              type="number"
+              min={0}
+              step={50}
+              value={form.ratePerPeriod}
+              onChange={(e) => set("ratePerPeriod", Math.max(0, Number(e.target.value) || 0))}
+              className={inputCls}
+              required
+            />
+          </Field>
+          <Field label="Student Tuition (XAF)*">
+            <input
+              type="number"
+              min={form.className === "Graduated" ? 0 : 1}
+              step={1000}
+              value={form.tuitionFee}
+              onChange={(e) => set("tuitionFee", Math.max(0, Number(e.target.value) || 0))}
+              className={inputCls}
+              required={form.className !== "Graduated"}
+            />
+          </Field>
+          <Field label="Tuition Installments (1–12)*">
+            <input
+              type="number"
+              min={1}
+              max={12}
+              step={1}
+              value={form.tuitionInstallments}
+              onChange={(e) => set("tuitionInstallments", Number(e.target.value) || 1)}
+              className={inputCls}
+              required
+            />
+          </Field>
+          <label className="flex items-center gap-3 rounded-lg border border-stone-200 px-3 py-2.5 sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.registrationFeeRequired}
+              onChange={(e) => setForm((current) => ({
+                ...current,
+                registrationFeeRequired: e.target.checked,
+                registrationFeeAmount: e.target.checked ? current.registrationFeeAmount : 0,
+              }))}
+              className="size-4 accent-blue-700"
+            />
+            <span className="text-sm font-semibold">Require a separate registration fee</span>
+          </label>
+          {form.registrationFeeRequired && (
+            <Field label="Registration Fee (XAF)*">
+              <input
+                type="number"
+                min={1}
+                step={500}
+                value={form.registrationFeeAmount}
+                onChange={(e) => set("registrationFeeAmount", Math.max(0, Number(e.target.value) || 0))}
+                className={inputCls}
+                required
+              />
+            </Field>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 mt-6">

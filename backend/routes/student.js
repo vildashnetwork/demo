@@ -1,6 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import Student from "../models/Students.js";
+import SchoolClass from "../models/SchoolClass.js";
 import {
     generateMatricule,
     previewMatricule,
@@ -358,6 +359,32 @@ router.post("/students", async (req, res) => {
     try {
         const studentData = req.body;
 
+        const schoolClass = await SchoolClass.findById(studentData.classId);
+        if (!schoolClass) {
+            return res.status(400).json({ success: false, message: "Select a valid class before enrolling the student" });
+        }
+        if (schoolClass.className !== "Graduated" && Number(schoolClass.tuitionFee) <= 0) {
+            return res.status(400).json({ success: false, message: "Configure tuition for this class before enrolling students" });
+        }
+        const tuitionPaid = Number(studentData.tuitionFeePaid ?? studentData.feesPaid) || 0;
+        const registrationFeeRequired = Boolean(schoolClass.registrationFeeRequired);
+        const registrationFeeAmount = registrationFeeRequired ? Number(schoolClass.registrationFeeAmount) || 0 : 0;
+        const registrationPaid = Number(studentData.registrationFeePaid) || 0;
+        if (tuitionPaid > Number(schoolClass.tuitionFee) || registrationPaid > registrationFeeAmount) {
+            return res.status(400).json({ success: false, message: "Initial payments cannot exceed the configured class fees" });
+        }
+        Object.assign(studentData, {
+            tuitionFee: Number(schoolClass.tuitionFee) || 0,
+            tuitionInstallments: Number(schoolClass.tuitionInstallments) || 1,
+            tuitionFeePaid: tuitionPaid,
+            tuitionInstallmentsPaid: Number(studentData.tuitionInstallmentsPaid) || 0,
+            registrationFeeRequired,
+            registrationFeeAmount,
+            registrationFeePaid: registrationPaid,
+            feesPaid: tuitionPaid + registrationPaid,
+            feesDue: Math.max(0, Number(schoolClass.tuitionFee) - tuitionPaid + registrationFeeAmount - registrationPaid),
+        });
+
         // NO DUPLICATE CHECK - Students can have the same name and parent phone
         // (Siblings can have same parent phone, different students can have same name)
 
@@ -419,7 +446,10 @@ router.post("/students/bulk", async (req, res) => {
                 'parentName', 'parentPhone', 'address', 'registrationDate',
                 'feesPaid', 'feesDue'
             ];
-            const missingFields = requiredFields.filter(field => !student[field]);
+            const missingFields = requiredFields.filter((field) => {
+                const value = student[field];
+                return value === undefined || value === null || (typeof value === "string" && !value.trim());
+            });
 
             if (missingFields.length > 0) {
                 validationErrors.push({
@@ -445,6 +475,28 @@ router.post("/students/bulk", async (req, res) => {
         const numberedStudents = [];
         for (const data of validStudents) {
             const payload = { ...data };
+            const schoolClass = await SchoolClass.findById(payload.classId);
+            if (!schoolClass) {
+                return res.status(400).json({ success: false, message: `Invalid class for ${payload.fullName}` });
+            }
+            if (schoolClass.className !== "Graduated" && Number(schoolClass.tuitionFee) <= 0) {
+                return res.status(400).json({ success: false, message: `Configure tuition for ${schoolClass.className} before bulk enrollment` });
+            }
+            const tuitionPaid = Number(payload.tuitionFeePaid ?? payload.feesPaid) || 0;
+            const registrationFeeRequired = Boolean(schoolClass.registrationFeeRequired);
+            const registrationFeeAmount = registrationFeeRequired ? Number(schoolClass.registrationFeeAmount) || 0 : 0;
+            const registrationPaid = Number(payload.registrationFeePaid) || 0;
+            Object.assign(payload, {
+                tuitionFee: Number(schoolClass.tuitionFee) || 0,
+                tuitionInstallments: Number(schoolClass.tuitionInstallments) || 1,
+                tuitionFeePaid: tuitionPaid,
+                tuitionInstallmentsPaid: Number(payload.tuitionInstallmentsPaid) || 0,
+                registrationFeeRequired,
+                registrationFeeAmount,
+                registrationFeePaid: registrationPaid,
+                feesPaid: tuitionPaid + registrationPaid,
+                feesDue: Math.max(0, Number(schoolClass.tuitionFee) - tuitionPaid + registrationFeeAmount - registrationPaid),
+            });
             if (!payload.enrollmentYear) payload.enrollmentYear = enrollmentYearOf(payload);
             if (!payload.matricule) {
                 // eslint-disable-next-line no-await-in-loop
@@ -473,7 +525,7 @@ router.post("/students/bulk", async (req, res) => {
 router.post("/students/:id/pay-fees", async (req, res) => {
     try {
         const { id } = req.params;
-        const { amount } = req.body;
+        const { amount, feeType = "tuition", installmentNumber, recordedBy = "admin" } = req.body;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({
@@ -482,11 +534,14 @@ router.post("/students/:id/pay-fees", async (req, res) => {
             });
         }
 
-        if (!amount || amount <= 0) {
+        if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
             return res.status(400).json({
                 success: false,
                 message: "Please provide a valid payment amount"
             });
+        }
+        if (!["tuition", "registration"].includes(feeType)) {
+            return res.status(400).json({ success: false, message: "Payment type must be tuition or registration" });
         }
 
         const student = await Student.findById(id);
@@ -497,16 +552,67 @@ router.post("/students/:id/pay-fees", async (req, res) => {
             });
         }
 
-        const paymentAmount = parseFloat(amount);
-        let remainingDue = student.feesDue - paymentAmount;
+        const paymentAmount = Number(amount);
+        const schoolClass = await SchoolClass.findById(student.classId);
+        const tuitionFee = Number(student.tuitionFee ?? schoolClass?.tuitionFee ?? (student.feesPaid + student.feesDue));
+        const installmentCount = Number(student.tuitionInstallments ?? schoolClass?.tuitionInstallments ?? 1);
+        const registrationRequired = Boolean(student.registrationFeeRequired ?? schoolClass?.registrationFeeRequired);
+        const registrationFeeAmount = registrationRequired
+            ? Number(student.registrationFeeAmount ?? schoolClass?.registrationFeeAmount ?? 0)
+            : 0;
+        let tuitionPaid = student.tuitionFeePaid == null
+            ? Number(student.feesPaid) || 0
+            : Number(student.tuitionFeePaid) || 0;
+        let installmentsPaid = Number(student.tuitionInstallmentsPaid) || 0;
+        let registrationPaid = Number(student.registrationFeePaid) || 0;
+        let installment = null;
 
-        if (remainingDue < 0) {
-            student.feesPaid += paymentAmount;
-            student.feesDue = 0;
+        if (feeType === "registration") {
+            if (!registrationRequired || registrationFeeAmount <= 0) {
+                return res.status(400).json({ success: false, message: "This class does not require a registration fee" });
+            }
+            const registrationDue = Math.max(0, registrationFeeAmount - registrationPaid);
+            if (paymentAmount > registrationDue) {
+                return res.status(400).json({ success: false, message: `Registration payment exceeds the remaining ${registrationDue} XAF` });
+            }
+            registrationPaid += paymentAmount;
         } else {
-            student.feesPaid += paymentAmount;
-            student.feesDue = remainingDue;
+            if (registrationRequired && registrationPaid < registrationFeeAmount) {
+                return res.status(400).json({ success: false, message: "Pay the required registration fee before tuition installments" });
+            }
+            if (installmentsPaid >= installmentCount) {
+                return res.status(400).json({ success: false, message: "All tuition installments are already paid" });
+            }
+            installment = installmentsPaid + 1;
+            if (installmentNumber && Number(installmentNumber) !== installment) {
+                return res.status(400).json({ success: false, message: `The next tuition payment is installment ${installment}` });
+            }
+            const remainingTuition = Math.max(0, tuitionFee - tuitionPaid);
+            const expectedAmount = installment === installmentCount
+                ? remainingTuition
+                : Math.min(remainingTuition, Math.round((tuitionFee / installmentCount) * 100) / 100);
+            if (Math.abs(paymentAmount - expectedAmount) > 0.01) {
+                return res.status(400).json({ success: false, message: `Installment ${installment} must be ${expectedAmount.toLocaleString()} XAF` });
+            }
+            tuitionPaid += paymentAmount;
+            installmentsPaid += 1;
         }
+
+        student.tuitionFee = tuitionFee;
+        student.tuitionInstallments = installmentCount;
+        student.tuitionFeePaid = tuitionPaid;
+        student.tuitionInstallmentsPaid = installmentsPaid;
+        student.registrationFeeRequired = registrationRequired;
+        student.registrationFeeAmount = registrationFeeAmount;
+        student.registrationFeePaid = registrationPaid;
+        student.feesPaid = tuitionPaid + registrationPaid;
+        student.feesDue = Math.max(0, (tuitionFee - tuitionPaid) + (registrationFeeAmount - registrationPaid));
+        student.feePayments.push({
+            feeType,
+            amount: paymentAmount,
+            installmentNumber: installment,
+            recordedBy: String(recordedBy),
+        });
 
         await student.save();
 
@@ -516,6 +622,8 @@ router.post("/students/:id/pay-fees", async (req, res) => {
             data: {
                 student: student,
                 paymentAmount: paymentAmount,
+                feeType,
+                installmentNumber: installment,
                 newBalance: student.feesDue
             }
         });
@@ -646,6 +754,31 @@ router.put("/students/:id", async (req, res) => {
         if (!payload.matricule && !existingStudent.matricule) {
             payload.enrollmentYear = payload.enrollmentYear || enrollmentYearOf(existingStudent);
             payload.matricule = await generateMatricule(payload);
+        }
+
+        if (payload.classId) {
+            const schoolClass = await SchoolClass.findById(payload.classId);
+            if (!schoolClass) {
+                return res.status(400).json({ success: false, message: "Select a valid class" });
+            }
+            if (schoolClass.className !== "Graduated" && Number(schoolClass.tuitionFee) <= 0) {
+                return res.status(400).json({ success: false, message: "Configure tuition for this class before assigning students" });
+            }
+            const tuitionPaid = existingStudent.tuitionFeePaid == null
+                ? Number(existingStudent.feesPaid) || 0
+                : Number(existingStudent.tuitionFeePaid) || 0;
+            const registrationFeeRequired = Boolean(schoolClass.registrationFeeRequired);
+            const registrationFeeAmount = registrationFeeRequired ? Number(schoolClass.registrationFeeAmount) || 0 : 0;
+            const registrationPaid = Number(existingStudent.registrationFeePaid) || 0;
+            payload.tuitionFee = Number(schoolClass.tuitionFee) || 0;
+            payload.tuitionInstallments = Number(schoolClass.tuitionInstallments) || 1;
+            payload.tuitionFeePaid = tuitionPaid;
+            payload.tuitionInstallmentsPaid = Number(existingStudent.tuitionInstallmentsPaid) || 0;
+            payload.registrationFeeRequired = registrationFeeRequired;
+            payload.registrationFeeAmount = registrationFeeAmount;
+            payload.registrationFeePaid = registrationPaid;
+            payload.feesPaid = tuitionPaid + registrationPaid;
+            payload.feesDue = Math.max(0, payload.tuitionFee - tuitionPaid + registrationFeeAmount - registrationPaid);
         }
 
         const updatedStudent = await Student.findByIdAndUpdate(

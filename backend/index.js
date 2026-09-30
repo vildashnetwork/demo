@@ -139,8 +139,8 @@ app.get("/health", (req, res) => {
 // Manifest endpoint
 app.get("/manifest.json", (req, res) => {
     res.json({
-        name: 'manfess',
-        short_name: 'manfess',
+        name: 'BCHS DOUALA',
+        short_name: 'BCHS',
         description: "School Management System",
         start_url: "/",
         display: "standalone",
@@ -159,7 +159,7 @@ app.get("/manifest.json", (req, res) => {
 // Root endpoint
 app.get("/", (req, res) => {
     res.json({
-        message: "Welcome to Manfess API",
+        message: "Welcome to BCHS DOUALA API",
         version: "1.0.0",
         endpoints: {
             health: "/health",

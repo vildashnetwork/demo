@@ -18,7 +18,7 @@ export function SpaHost() {
 
     // Status messages for different phases
     const statusMessages = [
-      { progress: 5, text: "Starting MANFESS..." },
+      { progress: 5, text: "Starting BCHS DOUALA..." },
       { progress: 15, text: "Loading modules..." },
       { progress: 25, text: "Connecting to services..." },
       { progress: 35, text: "Initializing components..." },
@@ -33,7 +33,7 @@ export function SpaHost() {
     // Update progress with random increments
     progressInterval = setInterval(() => {
       if (!mounted) return;
-      
+
       const increment = Math.floor(Math.random() * 4) + 1;
       currentProgress = Math.min(currentProgress + increment, 98);
       setProgress(currentProgress);
@@ -43,7 +43,7 @@ export function SpaHost() {
         if (curr.progress <= currentProgress) return curr;
         return prev;
       }, statusMessages[0]);
-      
+
       if (currentStatus) {
         setStatusText(currentStatus.text);
       }
@@ -64,7 +64,7 @@ export function SpaHost() {
         if (mounted) {
           // Complete the loading
           setProgress(100);
-          setStatusText("Welcome to MANFESS!");
+          setStatusText("Welcome to BCHS DOUALA!");
           // Small delay to show 100% before rendering
           setTimeout(() => {
             if (mounted) setApp(() => m.default);
@@ -93,11 +93,11 @@ export function SpaHost() {
           {/* Logo / Icon */}
           <div className="flex justify-center mb-8">
             <div className="relative">
-              <div className="w-24 h-24 rounded-2xl bg-green-600 flex items-center justify-center shadow-2xl">
-                <span className="text-white text-4xl font-bold font-display">M</span>
+              <div className="w-24 h-24 rounded-2xl bg-brand flex items-center justify-center shadow-2xl">
+                <span className="text-white text-3xl font-bold font-display">BCHS</span>
               </div>
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-xs font-bold text-white shadow-lg">
-                S
+              <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-white flex items-center justify-center text-xs font-bold text-brand shadow-lg">
+                D
               </div>
             </div>
           </div>
@@ -105,7 +105,7 @@ export function SpaHost() {
           {/* Title */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white font-display">
-              MANFESS
+              BCHS DOUALA
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Academic Management System
@@ -128,16 +128,16 @@ export function SpaHost() {
             <div className="relative">
               <div className="overflow-hidden h-3 rounded-full bg-stone-100 dark:bg-stone-700">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-300 ease-out"
-                  style={{ 
+                  className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-800 transition-all duration-300 ease-out"
+                  style={{
                     width: `${progress}%`,
                     transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
                   }}
                 />
               </div>
-              
+
               {/* Progress Percentage */}
-              <div className="absolute -top-5 right-0 text-xs font-mono font-bold text-green-600 dark:text-green-400">
+              <div className="absolute -top-5 right-0 text-xs font-mono font-bold text-brand">
                 {progress}%
               </div>
             </div>
@@ -149,7 +149,7 @@ export function SpaHost() {
                 {progress >= 30 && progress < 60 && " Loading your data..."}
                 {progress >= 60 && progress < 85 && " Almost there..."}
                 {progress >= 85 && progress < 100 && " Finalizing..."}
-                {progress >= 100 && " Welcome to MANFESS!"}
+                {progress >= 100 && " Welcome to BCHS DOUALA!"}
               </p>
             </div>
 
@@ -158,7 +158,7 @@ export function SpaHost() {
               {[0, 0.15, 0.3].map((delay, i) => (
                 <div
                   key={i}
-                  className="w-2.5 h-2.5 rounded-full bg-green-500/60"
+                  className="w-2.5 h-2.5 rounded-full bg-brand/60"
                   style={{
                     animation: 'pulse-dot 1.4s ease-in-out infinite',
                     animationDelay: `${delay}s`
@@ -171,7 +171,7 @@ export function SpaHost() {
           {/* Footer */}
           <div className="text-center mt-6">
             <p className="text-[10px] text-gray-400 dark:text-gray-600 tracking-wider uppercase font-medium">
-              MANFESS Evening School • Yaoundé, Cameroon
+              BCHS DOUALA • Douala, Cameroon
             </p>
           </div>
 

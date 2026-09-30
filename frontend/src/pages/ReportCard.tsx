@@ -352,6 +352,7 @@ export function ReportCard() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [marks, setMarks] = useState<any[]>([]);
+  const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [selectedTerm, setSelectedTerm] = useState<string>(termId);
 
   // Fetch data
@@ -392,6 +393,40 @@ export function ReportCard() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!studentId || !classes.length) return;
+
+    const currentClass = classes.find((cls) => cls.id === students.find((s) => s.id === studentId)?.classId);
+    const academicYear = currentClass?.acedemicYear || currentClass?.academicYear || "";
+    if (!academicYear) {
+      setAttendanceSummary(null);
+      return;
+    }
+
+    const fetchAttendanceSummary = async () => {
+      try {
+        const response = await axios.get(`${API_BASE}/attendance/students/summary`, {
+          params: {
+            studentId,
+            academicYear,
+            term: selectedTerm,
+          },
+        });
+
+        if (response.data.success && Array.isArray(response.data.data) && response.data.data.length > 0) {
+          setAttendanceSummary(response.data.data[0]);
+        } else {
+          setAttendanceSummary(null);
+        }
+      } catch (error) {
+        console.warn("No attendance summary available for this student", error);
+        setAttendanceSummary(null);
+      }
+    };
+
+    fetchAttendanceSummary();
+  }, [studentId, selectedTerm, classes, students]);
 
   // Build report data
   const data = useMemo(() => {
@@ -494,7 +529,7 @@ export function ReportCard() {
 
     // Header
     doc.setFontSize(16);
-    doc.text("MANFESS Evening School", 105, y, { align: "center" });
+    doc.text("BCHS DOUALA", 105, y, { align: "center" });
     y += 7;
     doc.setFontSize(9);
     doc.text("Republic of Cameroon · Peace — Work — Fatherland", 105, y, { align: "center" });
@@ -519,6 +554,13 @@ export function ReportCard() {
     doc.text(`Average: ${data.avg.toFixed(2)}/20`, 14, y);
     doc.text(`Rank: ${data.position ? ordinal(data.position) : "—"} / ${data.classSize}`, 105, y);
     y += 8;
+
+    const attendanceText = attendanceSummary
+      ? `Attendance: Present ${attendanceSummary.present ?? 0} | Absent ${attendanceSummary.absent ?? 0} | Late ${attendanceSummary.late ?? 0} | Excused ${attendanceSummary.excused ?? 0} | Rate ${attendanceSummary.attendanceRate ?? 0}%`
+      : "Attendance: No attendance records yet";
+    const attendanceLines = doc.splitTextToSize(attendanceText, 180);
+    doc.text(attendanceLines, 14, y);
+    y += attendanceLines.length * 5 + 4;
 
     // Subjects table
     const tableData = data.rows.map((r: any) => [
@@ -560,7 +602,7 @@ export function ReportCard() {
     doc.setFontSize(8);
     doc.text(`Parent: ${data.student.parentName} · Phone: ${data.student.parentPhone}`, 14, finalY + 10);
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, finalY + 16);
-    doc.text("© 2026 MANFESS Evening School", 105, finalY + 16, { align: "center" });
+    doc.text("© 2026 BCHS DOUALA", 105, finalY + 16, { align: "center" });
   };
 
   const changeTerm = (termId: string) => {
@@ -642,7 +684,7 @@ export function ReportCard() {
                 <div className="size-12 bg-brand rounded-xl grid place-items-center mb-1">
                   <GraduationCap className="size-6 text-white" />
                 </div>
-                <div className="font-display text-base font-extrabold tracking-tight">MANFESS EVENING SCHOOL</div>
+                <div className="font-display text-base font-extrabold tracking-tight">BCHS DOUALA</div>
                 <div className="text-[9px] text-black/60 font-normal">P.O. Box 1234, Yaoundé · MINESEC accredited</div>
               </div>
               <div>
@@ -669,6 +711,19 @@ export function ReportCard() {
               <Info label="Class Size" value={String(classSize)} />
               <Info label="Position" value={position ? `${ordinal(position)} / ${classSize}` : "—"} />
             </div>
+
+            {attendanceSummary && (
+              <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                <div className="mb-2 text-[10px] uppercase tracking-widest font-bold text-black/50">Attendance Summary</div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                  <Info label="Present" value={String(attendanceSummary.present ?? 0)} />
+                  <Info label="Absent" value={String(attendanceSummary.absent ?? 0)} />
+                  <Info label="Late" value={String(attendanceSummary.late ?? 0)} />
+                  <Info label="Excused" value={String(attendanceSummary.excused ?? 0)} />
+                  <Info label="Rate" value={`${attendanceSummary.attendanceRate ?? 0}%`} />
+                </div>
+              </div>
+            )}
 
             {/* Marks table */}
             <table className="w-full text-[11px] mt-4 border border-[#121212]">
@@ -759,7 +814,7 @@ export function ReportCard() {
             </div>
 
             <div className="mt-6 pt-3 border-t border-stone-300 flex items-center justify-between text-[10px] text-black/40">
-              <div>Issued by MAMS · MANFESS Evening School · {new Date().toLocaleDateString()}</div>
+              <div>Issued by BCHS DOUALA · {new Date().toLocaleDateString()}</div>
               <div className="font-mono">VERIF#{student.id.toUpperCase()}-{term.id.toUpperCase()}</div>
             </div>
           </div>

@@ -25,6 +25,7 @@ router.get("/settings", async (req, res) => {
         schoolDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
         academicYear,
         periodsPerDay: 6,
+        teacherPaymentMode: "hourly",
       };
     }
 
@@ -53,6 +54,7 @@ router.post("/settings", async (req, res) => {
       periodDurationMinutes,
       schoolDays,
       periodsPerDay,
+      teacherPaymentMode,
     } = req.body;
 
     const academicYear =
@@ -110,6 +112,13 @@ router.post("/settings", async (req, res) => {
       });
     }
 
+    if (teacherPaymentMode && !["hourly", "monthly"].includes(teacherPaymentMode)) {
+      return res.status(400).json({
+        success: false,
+        message: "Teacher payment mode must be hourly or monthly",
+      });
+    }
+
     const updates = {
       schoolStartTime,
       schoolEndTime,
@@ -124,6 +133,7 @@ router.post("/settings", async (req, res) => {
         "Friday",
       ],
       periodsPerDay: Number(periodsPerDay) || 6,
+      ...(teacherPaymentMode ? { teacherPaymentMode } : {}),
     };
 
     // Upsert by academic year (unique index enforces one settings document/year).

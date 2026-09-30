@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen, ClipboardEdit,
   FileText, Wallet, Settings, LogOut, Menu, X, Bell, ArrowUpRight,
-  Calendar,
+  Calendar, DollarSign, Download,
 } from "lucide-react";
 import { currentUser, logout } from "@/lib/auth";
 import type { User, Role } from "@/lib/types";
@@ -23,13 +23,17 @@ const NAV: NavItem[] = [
   { to: "/app/teachers", label: "Teachers", icon: GraduationCap, roles: ["super_admin", "admin"] },
   { to: "/app/classes", label: "Classes & Subjects", icon: BookOpen, roles: ["super_admin", "admin"] },
   { to: "/app/mark-entry", label: "Mark Entry", icon: ClipboardEdit, roles: ["super_admin", "admin", "teacher"] },
+  { to: "/app/student-attendance", label: "Student Attendance", icon: Calendar, roles: ["super_admin", "admin", "teacher"] },
   { to: "/app/teacher-timetable", label: "Teacher Timetable", icon: Calendar, roles: ["teacher"] },
-  { to: "/app/teacher-attendance", label: "Teacher Attendance", icon: Calendar, roles: ["admin"] },
-  { to: "/app/report-cards", label: "Report Cards", icon: FileText, roles: ["super_admin", "admin"] },
+  { to: "/app/teacher-attendance", label: "Teacher Attendance", icon: Calendar, roles: ["super_admin", "admin"] },
+  { to: "/app/report-cards", label: "Report Cards", icon: FileText, end: true, roles: ["super_admin", "admin"] },
+  { to: "/app/report-cards/bulk", label: "Bulk Report Cards", icon: FileText, roles: ["super_admin", "admin"] },
+  { to: "/app/class-lists", label: "Class Lists", icon: Download, roles: ["super_admin", "admin", "bursar"] },
   { to: "/app/promotion", label: "Promotion", icon: ArrowUpRight, roles: ["super_admin", "admin"] },
   { to: "/app/fees", label: "Fees & Finance", icon: Wallet, roles: ["super_admin", "admin", "bursar"] },
+  { to: "/app/teacher-salaries", label: "Teacher Salaries", icon: DollarSign, roles: ["super_admin", "admin", "bursar"] },
   { to: "/app/timetable", label: "Timetable", icon: Calendar, roles: ["super_admin", "admin"] },
-  { to: "/app/settings", label: "Settings", icon: Settings, roles: ["super_admin", "admin"] },
+  { to: "/app/settings", label: "School Settings", icon: Settings, roles: ["super_admin", "admin"] },
 ];
 
 export function AppLayout() {
@@ -63,8 +67,8 @@ export function AppLayout() {
             <GraduationCap className="size-4 text-white" />
           </div>
           <div>
-            <div className="font-display font-bold uppercase tracking-tight">MAMS</div>
-            <div className="text-[10px] text-white/40 uppercase tracking-widest">MANFESS</div>
+            <div className="font-display font-bold uppercase tracking-tight">BCHS DOUALA</div>
+            <div className="text-[10px] text-white/40 uppercase tracking-widest">SCHOOL PORTAL</div>
           </div>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -103,7 +107,7 @@ export function AppLayout() {
       <main className="flex-1 min-w-0">
         <header className="sticky top-0 z-30 h-16 bg-white border-b border-stone-200 px-6 lg:px-8 flex items-center justify-between">
           <div className="pl-10 lg:pl-0">
-            <div className="text-xs text-black/40 font-medium">MANFESS Evening School · 2024/25</div>
+            <div className="text-xs text-black/40 font-medium">BCHS DOUALA · School Portal</div>
             <div className="text-sm font-semibold">{getPageTitle(pathname)}</div>
           </div>
           <div className="flex items-center gap-3">
@@ -126,11 +130,16 @@ function getPageTitle(p: string) {
   if (p === "/app") return "Overview Dashboard";
   if (p.startsWith("/app/students")) return "Students";
   if (p.startsWith("/app/teachers")) return "Teachers";
+  if (p.startsWith("/app/teacher-attendance")) return "Teacher Attendance";
+  if (p.startsWith("/app/teacher-salaries")) return "Teacher Salaries";
+  if (p.startsWith("/app/teacher-timetable")) return "Teacher Timetable";
   if (p.startsWith("/app/classes")) return "Classes & Subjects";
   if (p.startsWith("/app/mark-entry")) return "Mark Entry";
+  if (p.startsWith("/app/student-attendance")) return "Student Attendance";
   if (p.startsWith("/app/report-cards")) return "Report Cards";
+  if (p.startsWith("/app/class-lists")) return "Class Lists";
   if (p.startsWith("/app/promotion")) return "Promotion";
   if (p.startsWith("/app/fees")) return "Fees & Finance";
-  if (p.startsWith("/app/settings")) return "Settings";
-  return "MAMS";
+  if (p.startsWith("/app/settings")) return "School Settings";
+  return "BCHS DOUALA";
 }

@@ -67,7 +67,43 @@ const studentschema = new mongoose.Schema({
     feesDue: {
         type: Number,
         required: true
-    }
+    },
+    tuitionFee: {
+        type: Number,
+        min: [0, "Tuition fee cannot be negative"]
+    },
+    tuitionInstallments: {
+        type: Number,
+        min: [1, "At least one installment is required"],
+        max: [12, "Tuition cannot exceed 12 installments"]
+    },
+    tuitionFeePaid: {
+        type: Number,
+        min: 0
+    },
+    tuitionInstallmentsPaid: {
+        type: Number,
+        min: 0
+    },
+    registrationFeeRequired: {
+        type: Boolean
+    },
+    registrationFeeAmount: {
+        type: Number,
+        min: 0
+    },
+    registrationFeePaid: {
+        type: Number,
+        min: 0
+    },
+    feePayments: [{
+        _id: false,
+        feeType: { type: String, enum: ["tuition", "registration"], required: true },
+        amount: { type: Number, min: 1, required: true },
+        installmentNumber: { type: Number, min: 1 },
+        paidAt: { type: Date, default: Date.now },
+        recordedBy: { type: String, default: "" }
+    }]
 
 }, {
     timestamps: true,

@@ -184,6 +184,16 @@ router.post("/classes", async (req, res) => {
             });
         }
 
+        if (classData.className !== "Graduated" && Number(classData.tuitionFee) <= 0) {
+            return res.status(400).json({ success: false, message: "Tuition fee must be greater than zero" });
+        }
+        if (!Number.isInteger(Number(classData.tuitionInstallments)) || Number(classData.tuitionInstallments) < 1 || Number(classData.tuitionInstallments) > 12) {
+            return res.status(400).json({ success: false, message: "Tuition installments must be between 1 and 12" });
+        }
+        if (classData.registrationFeeRequired && Number(classData.registrationFeeAmount) <= 0) {
+            return res.status(400).json({ success: false, message: "Registration fee amount must be greater than zero when required" });
+        }
+
         // Trim all string fields
         Object.keys(classData).forEach(key => {
             if (typeof classData[key] === 'string') {
@@ -271,6 +281,21 @@ router.put("/classes/:id", async (req, res) => {
                 success: false,
                 message: "Class not found"
             });
+        }
+
+        const resultingClassName = classData.className || existing.className;
+        const resultingTuitionFee = classData.tuitionFee ?? existing.tuitionFee;
+        const resultingInstallments = classData.tuitionInstallments ?? existing.tuitionInstallments;
+        const resultingRegistrationRequired = classData.registrationFeeRequired ?? existing.registrationFeeRequired;
+        const resultingRegistrationAmount = classData.registrationFeeAmount ?? existing.registrationFeeAmount;
+        if (resultingClassName !== "Graduated" && Number(resultingTuitionFee) <= 0) {
+            return res.status(400).json({ success: false, message: "Tuition fee must be greater than zero" });
+        }
+        if (!Number.isInteger(Number(resultingInstallments)) || Number(resultingInstallments) < 1 || Number(resultingInstallments) > 12) {
+            return res.status(400).json({ success: false, message: "Tuition installments must be between 1 and 12" });
+        }
+        if (resultingRegistrationRequired && Number(resultingRegistrationAmount) <= 0) {
+            return res.status(400).json({ success: false, message: "Registration fee amount must be greater than zero when required" });
         }
 
         // Trim all string fields

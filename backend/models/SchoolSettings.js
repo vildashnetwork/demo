@@ -82,10 +82,15 @@ const schoolSettingsSchema = new mongoose.Schema({
     max: [12, "Cannot exceed 12 periods"],
     default: 6,
   },
+  teacherPaymentMode: {
+    type: String,
+    enum: ["hourly", "monthly"],
+    default: "hourly",
+  },
 },
-{
-  timestamps: true,
-});
+  {
+    timestamps: true,
+  });
 
 // Ensure only one settings document per academic year
 schoolSettingsSchema.index({ academicYear: 1 }, { unique: true });

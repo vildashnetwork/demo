@@ -350,7 +350,7 @@ export function PromotionPage() {
       let htmlContent = `
         <div style="font-family: Arial, sans-serif; color: #121212;">
           <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-            <h1 style="font-size: 20px; margin: 0;">MANFESS Evening School</h1>
+            <h1 style="font-size: 20px; margin: 0;">BCHS DOUALA</h1>
             <p style="font-size: 12px; color: #666; margin: 5px 0;">Class Statistics Report</p>
           </div>
           
@@ -369,7 +369,7 @@ export function PromotionPage() {
             <div style="border: 1px solid #ddd; padding: 8px; border-radius: 4px; text-align: center;">
               <strong>Female</strong><br/>${classStats.females}
             </div>
-            <div style="border: 1px solid #ddd; padding: 8px; border-radius: 4px; text-align: center; border-color: #0F7A35; background: #f0f9f0;">
+            <div style="border: 1px solid #ddd; padding: 8px; border-radius: 4px; text-align: center; border-color: #155DAA; background: #EAF2FB;">
               <strong>Passed</strong><br/>${classStats.passed} (${classStats.passRate.toFixed(1)}%)
             </div>
             <div style="border: 1px solid #ddd; padding: 8px; border-radius: 4px; text-align: center; border-color: #dc2626; background: #fef2f2;">
@@ -474,7 +474,7 @@ export function PromotionPage() {
               <span>Date: ______________________________</span>
             </div>
             <div style="font-size: 9px; color: #666; text-align: center; margin-top: 10px; padding-top: 8px; border-top: 1px solid #ddd;">
-              Generated: ${new Date().toLocaleString()} | © 2026 MANFESS Evening School
+              Generated: ${new Date().toLocaleString()} | © 2026 BCHS DOUALA
             </div>
           </div>
         </div>

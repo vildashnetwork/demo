@@ -44,7 +44,7 @@
 //     <div className="space-y-6">
 //       <div>
 //         <h1 className="font-display text-3xl font-extrabold tracking-tight">Welcome back</h1>
-//         <p className="text-sm text-black/60 mt-1">Here's what's happening across MANFESS Evening School today.</p>
+//         <p className="text-sm text-black/60 mt-1">Here's what's happening across BCHS DOUALA today.</p>
 //       </div>
 //       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 //         <Kpi icon={Users} label="Total Students" value={data.totalStudents.toLocaleString()} hint="+12% vs last year" />
@@ -58,7 +58,7 @@
 //             <div><h3 className="font-display font-bold">Class Averages</h3><p className="text-xs text-black/50 mt-0.5">Weighted average / 20</p></div>
 //             {data.bestClass && <div className="flex items-center gap-2 text-xs bg-brand/10 text-brand px-3 py-1.5 rounded-full font-bold"><Award className="size-3.5" /> Best: {data.bestClass.name} · {data.bestClass.avg}</div>}
 //           </div>
-//           <div className="h-64"><ResponsiveContainer><BarChart data={data.classAvgs}><CartesianGrid strokeDasharray="3 3" stroke="#eee" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis domain={[0, 20]} tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="avg" fill="#0F7A35" radius={[8, 8, 0, 0]} /></BarChart></ResponsiveContainer></div>
+//           <div className="h-64"><ResponsiveContainer><BarChart data={data.classAvgs}><CartesianGrid strokeDasharray="3 3" stroke="#eee" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis domain={[0, 20]} tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="avg" fill="#155DAA" radius={[8, 8, 0, 0]} /></BarChart></ResponsiveContainer></div>
 //         </div>
 //         <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
 //           <h3 className="font-display font-bold mb-1">Excellence Board</h3>
@@ -82,7 +82,7 @@
 //       <div className="grid lg:grid-cols-3 gap-6">
 //         <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
 //           <h3 className="font-display font-bold mb-4">Sequence Performance Trend</h3>
-//           <div className="h-56"><ResponsiveContainer><LineChart data={data.trend}><CartesianGrid strokeDasharray="3 3" stroke="#eee" /><XAxis dataKey="sequence" tick={{ fontSize: 11 }} /><YAxis domain={[0, 20]} tick={{ fontSize: 11 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 11 }} /><Line type="monotone" dataKey="average" stroke="#0F7A35" strokeWidth={3} dot={{ r: 5 }} connectNulls /></LineChart></ResponsiveContainer></div>
+//           <div className="h-56"><ResponsiveContainer><LineChart data={data.trend}><CartesianGrid strokeDasharray="3 3" stroke="#eee" /><XAxis dataKey="sequence" tick={{ fontSize: 11 }} /><YAxis domain={[0, 20]} tick={{ fontSize: 11 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 11 }} /><Line type="monotone" dataKey="average" stroke="#155DAA" strokeWidth={3} dot={{ r: 5 }} connectNulls /></LineChart></ResponsiveContainer></div>
 //         </div>
 //         <div className="bg-[#121212] text-white rounded-2xl p-6 flex flex-col justify-between">
 //           <div>
@@ -205,6 +205,7 @@ export function Dashboard() {
   const [marks, setMarks] = useState<Mark[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [performanceView, setPerformanceView] = useState<"classes" | "subjects">("classes");
 
   const fetchData = async () => {
     try {
@@ -287,6 +288,8 @@ export function Dashboard() {
         passRate: 0,
         classAvgs: [],
         bestClass: null,
+        subjectAvgs: [],
+        bestSubject: null,
         top: [],
         trend: [],
       };
@@ -327,13 +330,26 @@ export function Dashboard() {
       const avgs = studs.map((st) => studentAvgs.find((sa) => sa.id === st.id)?.avg ?? 0);
       const avg = avgs.length ? avgs.reduce((x, y) => x + y, 0) / avgs.length : 0;
       return {
-        name: c.className.replace("Form ", "F"),
+        name: `${c.className.replace("Form ", "F")} ${c.department || ""}`.trim(),
         avg: Math.round(avg * 10) / 10
       };
     });
 
+    const subjectAvgs = subjects.map((subject) => {
+      const subjectMarks = marks.filter((mark) => mark.subjectId === subject.id);
+      const avg = subjectMarks.length
+        ? subjectMarks.reduce((total, mark) => total + mark.score, 0) / subjectMarks.length
+        : 0;
+      return {
+        name: `${subject.name} (${subject.code})`,
+        avg: Math.round(avg * 10) / 10,
+        markCount: subjectMarks.length,
+      };
+    }).filter((subject) => subject.markCount > 0);
+
     // Best class
     const bestClass = [...classAvgs].sort((a, b) => b.avg - a.avg)[0] || null;
+    const bestSubject = [...subjectAvgs].sort((a, b) => b.avg - a.avg)[0] || null;
 
     // Top students
     const top = studentAvgs
@@ -385,6 +401,8 @@ export function Dashboard() {
       passRate,
       classAvgs,
       bestClass,
+      subjectAvgs,
+      bestSubject,
       top,
       trend,
       aiInsight,
@@ -406,7 +424,7 @@ export function Dashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-extrabold tracking-tight">Welcome back</h1>
-        <p className="text-sm text-black/60 mt-1">Here's what's happening across MANFESS Evening School today.</p>
+        <p className="text-sm text-black/60 mt-1">Here's what's happening across BCHS DOUALA today.</p>
       </div>
 
       {/* KPI Cards */}
@@ -441,32 +459,60 @@ export function Dashboard() {
       {/* Charts */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <div>
-              <h3 className="font-display font-bold">Class Averages</h3>
-              <p className="text-xs text-black/50 mt-0.5">Weighted average / 20</p>
+              <h3 className="font-display font-bold">{performanceView === "classes" ? "Class Averages" : "Subject Averages"}</h3>
+              <p className="text-xs text-black/50 mt-0.5">Average score / 20 · {performanceView === "classes" ? data.classAvgs.length : data.subjectAvgs.length} shown</p>
             </div>
-            {data.bestClass && (
-              <div className="flex items-center gap-2 text-xs bg-brand/10 text-brand px-3 py-1.5 rounded-full font-bold">
-                <Award className="size-3.5" /> Best: {data.bestClass.name} · {data.bestClass.avg}
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <div className="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-1">
+                <button
+                  type="button"
+                  onClick={() => setPerformanceView("classes")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${performanceView === "classes" ? "bg-white text-brand shadow-sm" : "text-black/55 hover:text-black"}`}
+                >
+                  Classes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPerformanceView("subjects")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${performanceView === "subjects" ? "bg-white text-brand shadow-sm" : "text-black/55 hover:text-black"}`}
+                >
+                  Subjects
+                </button>
               </div>
-            )}
+              {(performanceView === "classes" ? data.bestClass : data.bestSubject) && (
+                <div className="flex items-center gap-1.5 text-xs bg-brand/10 text-brand px-3 py-1.5 rounded-full font-bold">
+                  <Award className="size-3.5" />
+                  Best: {performanceView === "classes" ? data.bestClass?.name : data.bestSubject?.name}
+                  {" · "}{performanceView === "classes" ? data.bestClass?.avg : data.bestSubject?.avg}
+                </div>
+              )}
+            </div>
           </div>
-          {data.classAvgs.length > 0 ? (
-            <div className="h-64">
-              <ResponsiveContainer>
-                <BarChart data={data.classAvgs}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis domain={[0, 20]} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="avg" fill="#0F7A35" radius={[8, 8, 0, 0]} />
+          {((performanceView === "classes" ? data.classAvgs : data.subjectAvgs).length > 0) ? (
+            <div className="max-h-[420px] overflow-y-auto overflow-x-hidden pr-2">
+              <ResponsiveContainer
+                width="100%"
+                height={Math.max(260, (performanceView === "classes" ? data.classAvgs : data.subjectAvgs).length * 38)}
+              >
+                <BarChart
+                  data={[...(performanceView === "classes" ? data.classAvgs : data.subjectAvgs)].sort((a, b) => b.avg - a.avg)}
+                  layout="vertical"
+                  margin={{ top: 4, right: 20, bottom: 4, left: 4 }}
+                  barCategoryGap={8}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#eee" horizontal={false} />
+                  <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" width={140} interval={0} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(value) => [`${Number(value).toFixed(1)} / 20`, "Average"]} />
+                  <Bar dataKey="avg" fill="#155DAA" radius={[0, 6, 6, 0]} maxBarSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
             <div className="h-64 flex items-center justify-center text-black/40">
-              No class data available
+              No {performanceView === "classes" ? "class" : "subject"} data available
             </div>
           )}
         </div>
@@ -514,7 +560,7 @@ export function Dashboard() {
                   <Line
                     type="monotone"
                     dataKey="average"
-                    stroke="#0F7A35"
+                    stroke="#155DAA"
                     strokeWidth={3}
                     dot={{ r: 5 }}
                     connectNulls

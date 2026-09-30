@@ -4,7 +4,22 @@ import { syncTombstonePlugin } from "../db/syncPlugin.js";
 const schoolClassSchema = new mongoose.Schema({
     className: {
         type: String,
-        enum: ["Beginers1", "Beginers2", "Olevel 3", "Olevel 4", "Olevel 5", "Alevel", "Graduated"],
+        enum: [
+            "Beginers1",
+            "Beginers2",
+            "Olevel 3",
+            "Olevel 4",
+            "Olevel 5",
+            "Alevel",
+            "Graduated",
+            "Form 1",
+            "Form 2",
+            "Form 3",
+            "Form 4",
+            "Form 5",
+            "Lower 6th",
+            "Upper 6th"
+        ],
         required: [true, "Class name is required"],
         trim: true
     },
@@ -44,6 +59,32 @@ const schoolClassSchema = new mongoose.Schema({
         type: Number,
         default: 50,
         min: [1, "Maximum students must be at least 1"]
+    },
+    ratePerPeriod: {
+        type: Number,
+        min: [0, "Rate per period cannot be negative"]
+    },
+    tuitionFee: {
+        type: Number,
+        required: [true, "Class tuition fee is required"],
+        min: [0, "Tuition fee cannot be negative"],
+        default: 0
+    },
+    tuitionInstallments: {
+        type: Number,
+        required: [true, "Tuition installment count is required"],
+        min: [1, "At least one tuition installment is required"],
+        max: [12, "Tuition cannot exceed 12 installments"],
+        default: 1
+    },
+    registrationFeeRequired: {
+        type: Boolean,
+        default: false
+    },
+    registrationFeeAmount: {
+        type: Number,
+        min: [0, "Registration fee cannot be negative"],
+        default: 0
     },
     isActive: {
         type: Boolean,

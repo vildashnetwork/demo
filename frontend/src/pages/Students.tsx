@@ -22,6 +22,13 @@ interface Student {
   registrationDate: string;
   feesPaid: number;
   feesDue: number;
+  tuitionFee?: number;
+  tuitionInstallments?: number;
+  tuitionFeePaid?: number;
+  tuitionInstallmentsPaid?: number;
+  registrationFeeRequired?: boolean;
+  registrationFeeAmount?: number;
+  registrationFeePaid?: number;
 }
 
 interface Class {
@@ -31,19 +38,16 @@ interface Class {
   cycle: string;
   acedemicYear: string;
   classMasterId: string;
+  tuitionFee: number;
+  tuitionInstallments: number;
+  registrationFeeRequired: boolean;
+  registrationFeeAmount: number;
 }
 
-// Helper function to get fee by class name
-function getFeeByClass(className: string): number {
-  const feeMap: { [key: string]: number } = {
-    "Beginers": 80000,
-    "level 3": 80000,
-    "level 4": 80000,
-    "level 5": 80000,
-    "Upper 6th": 100000,
-    "Graduated": 0
-  };
-  return feeMap[className] || 80000;
+function getClassTotalFee(schoolClass?: Class): number {
+  if (!schoolClass) return 0;
+  return Number(schoolClass.tuitionFee || 0)
+    + (schoolClass.registrationFeeRequired ? Number(schoolClass.registrationFeeAmount || 0) : 0);
 }
 
 // Helper to check if ID is a MongoDB ObjectId
@@ -85,7 +89,11 @@ export function StudentsPage() {
       if (classesRes.data.success) {
         const mappedClasses = classesRes.data.data.map((cls: any) => ({
           ...cls,
-          id: cls._id || cls.id
+          id: cls._id || cls.id,
+          tuitionFee: Number(cls.tuitionFee) || 0,
+          tuitionInstallments: Number(cls.tuitionInstallments) || 1,
+          registrationFeeRequired: Boolean(cls.registrationFeeRequired),
+          registrationFeeAmount: Number(cls.registrationFeeAmount) || 0,
         }));
         setClasses(mappedClasses);
       }
@@ -112,7 +120,7 @@ export function StudentsPage() {
       }
       if (feeStatusFilter === "paid" && s.feesDue > 0) return false;
       if (feeStatusFilter === "owing" && s.feesDue === 0) return false;
-      if (feeStatusFilter === "partial" && (s.feesDue === 0 || s.feesDue >= getFeeByClass(classes.find(c => c.id === s.classId)?.className || ""))) return false;
+      if (feeStatusFilter === "partial" && (s.feesDue === 0 || s.feesDue >= getClassTotalFee(classes.find(c => c.id === s.classId)))) return false;
       return true;
     });
   }, [students, q, classFilter, feeStatusFilter, classes]);
@@ -134,8 +142,15 @@ export function StudentsPage() {
       }
 
       const classObj = classes.find(c => c.id === student.classId);
-      const totalFee = getFeeByClass(classObj?.className || "");
-      const feesDue = student.feesPaid === 0 ? totalFee : Math.max(0, totalFee - student.feesPaid);
+      const totalFee = getClassTotalFee(classObj);
+      if (!classObj || (classObj.className !== "Graduated" && classObj.tuitionFee <= 0)) {
+        toast.error("Configure this class's tuition in Classes & Subjects before enrolling students");
+        return;
+      }
+      const tuitionPaid = Number(student.tuitionFeePaid) || 0;
+      const registrationPaid = Number(student.registrationFeePaid) || 0;
+      const feesPaid = tuitionPaid + registrationPaid;
+      const feesDue = Math.max(0, totalFee - feesPaid);
 
       const studentData = {
         fullName: student.fullName.trim(),
@@ -148,8 +163,15 @@ export function StudentsPage() {
         address: student.address.trim(),
         photoUrl: student.photoUrl || "",
         registrationDate: student.registrationDate || new Date().toISOString().slice(0, 10),
-        feesPaid: student.feesPaid,
-        feesDue: feesDue
+        feesPaid,
+        feesDue,
+        tuitionFee: classObj.tuitionFee,
+        tuitionInstallments: classObj.tuitionInstallments,
+        tuitionFeePaid: tuitionPaid,
+        tuitionInstallmentsPaid: Number(student.tuitionInstallmentsPaid) || 0,
+        registrationFeeRequired: classObj.registrationFeeRequired,
+        registrationFeeAmount: classObj.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
+        registrationFeePaid: registrationPaid,
       };
 
       console.log("➕ Creating new student");
@@ -189,8 +211,13 @@ export function StudentsPage() {
       }
 
       const classObj = classes.find(c => c.id === student.classId);
-      const totalFee = getFeeByClass(classObj?.className || "");
-      const feesDue = student.feesPaid === 0 ? totalFee : Math.max(0, totalFee - student.feesPaid);
+      const totalFee = getClassTotalFee(classObj);
+      if (!classObj || (classObj.className !== "Graduated" && classObj.tuitionFee <= 0)) {
+        toast.error("Configure this class's tuition in Classes & Subjects before enrolling students");
+        return;
+      }
+      const feesPaid = Number(student.feesPaid) || 0;
+      const feesDue = Math.max(0, totalFee - feesPaid);
 
       const studentData = {
         fullName: student.fullName.trim(),
@@ -203,8 +230,12 @@ export function StudentsPage() {
         address: student.address.trim(),
         photoUrl: student.photoUrl || "",
         registrationDate: student.registrationDate || new Date().toISOString().slice(0, 10),
-        feesPaid: student.feesPaid,
-        feesDue: feesDue
+        feesPaid,
+        feesDue,
+        tuitionFee: classObj.tuitionFee,
+        tuitionInstallments: classObj.tuitionInstallments,
+        registrationFeeRequired: classObj.registrationFeeRequired,
+        registrationFeeAmount: classObj.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
       };
 
       console.log("🔄 Updating student with ID:", student.id);
@@ -279,7 +310,7 @@ export function StudentsPage() {
 
     const rows = filtered.map((s) => {
       const classObj = classes.find(c => c.id === s.classId);
-      const totalFee = getFeeByClass(classObj?.className || "");
+      const totalFee = getClassTotalFee(classObj);
       const status = s.feesDue === 0 ? "Fully Paid" : s.feesDue < totalFee ? "Partial" : "Owing";
       return [
         s.fullName,
@@ -330,7 +361,7 @@ export function StudentsPage() {
 
     const tableData = filtered.map((s) => {
       const classObj = classes.find(c => c.id === s.classId);
-      const totalFee = getFeeByClass(classObj?.className || "");
+      const totalFee = getClassTotalFee(classObj);
       const status = s.feesDue === 0 ? "Paid" : s.feesDue < totalFee ? "Partial" : "Owing";
       return [
         s.fullName,
@@ -546,7 +577,7 @@ export function StudentsPage() {
             <tbody className="divide-y divide-stone-100">
               {filtered.map((s) => {
                 const classObj = classes.find(c => c.id === s.classId);
-                const totalFee = getFeeByClass(classObj?.className || "");
+                const totalFee = getClassTotalFee(classObj);
                 const status = s.feesDue === 0 ? "Fully Paid" : s.feesDue < totalFee ? "Partial" : "Owing";
                 const statusColor = s.feesDue === 0 ? "bg-brand/10 text-brand" : s.feesDue < totalFee ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700";
 
@@ -660,27 +691,25 @@ function StudentDialog({
 }) {
   const [form, setForm] = useState<Student>(initial);
   const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState(0);
+  const steps = ["Student", "Class & fees", "Family", "Review"];
 
   const set = <K extends keyof Student>(k: K, v: Student[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
   const handleClassChange = (classId: string) => {
     const classObj = classes.find(c => c.id === classId);
-    const totalFee = getFeeByClass(classObj?.className || "");
-    const remaining = Math.max(0, totalFee - form.feesPaid);
-
-    set("classId", classId);
-    if (classObj) set("department", classObj.department);
-    set("feesDue", remaining);
-  };
-
-  const handleFeesPaidChange = (amount: number) => {
-    const classObj = classes.find(c => c.id === form.classId);
-    const totalFee = getFeeByClass(classObj?.className || "");
-    const remaining = Math.max(0, totalFee - amount);
-
-    set("feesPaid", amount);
-    set("feesDue", remaining);
+    const totalFee = getClassTotalFee(classObj);
+    setForm((current) => ({
+      ...current,
+      classId,
+      department: classObj?.department || current.department,
+      tuitionFee: classObj?.tuitionFee || 0,
+      tuitionInstallments: classObj?.tuitionInstallments || 1,
+      registrationFeeRequired: Boolean(classObj?.registrationFeeRequired),
+      registrationFeeAmount: classObj?.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
+      feesDue: Math.max(0, totalFee - (Number(current.feesPaid) || 0)),
+    }));
   };
 
   const handleSave = async () => {
@@ -688,12 +717,34 @@ function StudentDialog({
       toast.error("Full name is required");
       return;
     }
+    if (!isEditing && step < steps.length - 1) {
+      if (step === 1) {
+        const selectedClass = classes.find((item) => item.id === form.classId);
+        if (!selectedClass) {
+          toast.error("Select a class to continue");
+          return;
+        }
+        if (selectedClass.className !== "Graduated" && selectedClass.tuitionFee <= 0) {
+          toast.error("This class needs a tuition amount configured before student enrollment");
+          return;
+        }
+      }
+      if (step === 2 && !form.parentPhone.trim()) {
+        toast.error("Parent phone is required");
+        return;
+      }
+      setStep((current) => current + 1);
+      return;
+    }
+
     if (!form.parentPhone.trim()) {
       toast.error("Parent phone is required");
+      if (!isEditing) setStep(2);
       return;
     }
     if (!form.classId) {
       toast.error("Class is required");
+      if (!isEditing) setStep(1);
       return;
     }
 
@@ -706,6 +757,15 @@ function StudentDialog({
   };
 
   const isEditing = mode === 'edit';
+  const selectedClass = classes.find((item) => item.id === form.classId);
+  const tuitionFee = selectedClass?.tuitionFee ?? form.tuitionFee ?? 0;
+  const installmentCount = selectedClass?.tuitionInstallments ?? form.tuitionInstallments ?? 1;
+  const registrationRequired = selectedClass?.registrationFeeRequired ?? form.registrationFeeRequired ?? false;
+  const registrationAmount = registrationRequired
+    ? selectedClass?.registrationFeeAmount ?? form.registrationFeeAmount ?? 0
+    : 0;
+
+  const stepHeading = steps[step];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={onCancel}>
@@ -714,108 +774,121 @@ function StudentDialog({
           {isEditing ? "Edit Student" : "Add Student"}
         </h3>
         <p className="text-xs text-black/50 mb-5">
-          {isEditing ? "Update student details below." : "Fill in the student details below."}
+          {isEditing ? "Update student details below." : `Step ${step + 1} of ${steps.length} · ${stepHeading}`}
         </p>
 
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Full Name*">
-            <input
-              value={form.fullName}
-              onChange={(e) => set("fullName", e.target.value)}
-              className={inputCls}
-              required
-            />
-          </Field>
-          <Field label="Gender">
-            <select
-              value={form.gender}
-              onChange={(e) => set("gender", e.target.value)}
-              className={inputCls}
-            >
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
-          </Field>
-          <Field label="Date of Birth">
-            <input
-              type="date"
-              value={form.dob}
-              onChange={(e) => set("dob", e.target.value)}
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Class*">
-            <select
-              value={form.classId}
-              onChange={(e) => handleClassChange(e.target.value)}
-              className={inputCls}
-              required
-            >
-              <option value="">Select class</option>
-              {classes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.className} - {c.department}
-                </option>
+        {!isEditing && (
+          <div className="mb-6">
+            <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-stone-100">
+              <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
+            </div>
+            <ol className="grid grid-cols-4 gap-2">
+              {steps.map((label, index) => (
+                <li key={label}>
+                  <button
+                    type="button"
+                    onClick={() => index < step && setStep(index)}
+                    disabled={index >= step || saving}
+                    className={`flex w-full items-center gap-1.5 text-left text-[10px] font-semibold sm:text-xs ${index === step ? "text-brand" : index < step ? "text-black/60" : "text-black/30"}`}
+                  >
+                    <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[10px] ${index <= step ? "bg-brand text-white" : "bg-stone-100 text-black/40"}`}>
+                      {index + 1}
+                    </span>
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                </li>
               ))}
-            </select>
-          </Field>
-          <Field label="Parent Name">
-            <input
-              value={form.parentName}
-              onChange={(e) => set("parentName", e.target.value)}
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Parent Phone*">
-            <input
-              value={form.parentPhone}
-              onChange={(e) => set("parentPhone", e.target.value)}
-              className={inputCls}
-              required
-            />
-          </Field>
-          <Field label="Address">
-            <input
-              value={form.address}
-              onChange={(e) => set("address", e.target.value)}
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Registration Date">
-            <input
-              type="date"
-              value={form.registrationDate}
-              onChange={(e) => set("registrationDate", e.target.value)}
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Fees Paid (XAF)">
-            <input
-              type="number"
-              min="0"
-              value={form.feesPaid}
-              onChange={(e) => handleFeesPaidChange(Number(e.target.value))}
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Fees Due (XAF)">
-            <input
-              type="number"
-              value={form.feesDue}
-              disabled
-              className={`${inputCls} bg-stone-50`}
-            />
-          </Field>
-        </div>
+            </ol>
+          </div>
+        )}
 
-        <div className="mt-4 p-3 bg-stone-50 rounded-xl text-xs">
-          <p className="font-bold">Fee Structure:</p>
-          <ul className="mt-1 space-y-0.5 text-black/60">
-            <li>Form 1 - 4: 80,000 XAF</li>
-            <li>Form 5: 90,000 XAF</li>
-            <li>Lower 6th - Upper 6th: 100,000 XAF</li>
-          </ul>
-        </div>
+        {(isEditing || step === 0) && (
+          <section className="space-y-4">
+            {!isEditing && <h4 className="font-display font-bold">Student details</h4>}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Full Name*">
+                <input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} className={inputCls} required autoFocus={!isEditing} />
+              </Field>
+              <Field label="Gender">
+                <select value={form.gender} onChange={(e) => set("gender", e.target.value)} className={inputCls}>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </Field>
+              <Field label="Date of Birth">
+                <input type="date" value={form.dob} onChange={(e) => set("dob", e.target.value)} className={inputCls} />
+              </Field>
+            </div>
+          </section>
+        )}
+
+        {(isEditing || step === 1) && (
+          <section className="space-y-4">
+            {!isEditing && <h4 className="font-display font-bold">Class and fees</h4>}
+            <Field label="Class*">
+              <select value={form.classId} onChange={(e) => handleClassChange(e.target.value)} className={inputCls} required>
+                <option value="">Select class</option>
+                {classes.map((schoolClass) => (
+                  <option key={schoolClass.id} value={schoolClass.id}>
+                    {schoolClass.className} - {schoolClass.department} · {schoolClass.tuitionFee.toLocaleString()} XAF
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {form.classId ? (
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm">
+                <p className="font-bold text-[#121212]">Fee plan · {selectedClass?.className} {selectedClass?.department}</p>
+                <div className="mt-2 grid gap-2 text-xs text-black/65 sm:grid-cols-2">
+                  <p>Tuition <strong className="block text-sm">{tuitionFee.toLocaleString()} XAF</strong></p>
+                  <p>Installments <strong className="block text-sm">{installmentCount} equal payments · about {installmentCount ? Math.ceil(tuitionFee / installmentCount).toLocaleString() : 0} XAF each</strong></p>
+                  <p>Registration fee <strong className="block text-sm">{registrationRequired ? `${registrationAmount.toLocaleString()} XAF required` : "Not required"}</strong></p>
+                  <p>Total required <strong className="block text-sm">{(tuitionFee + registrationAmount).toLocaleString()} XAF</strong></p>
+                </div>
+              </div>
+            ) : (
+              <p className="rounded-lg bg-stone-50 p-4 text-sm text-black/50">Choose a class to see its tuition and registration requirements.</p>
+            )}
+          </section>
+        )}
+
+        {(isEditing || step === 2) && (
+          <section className="space-y-4">
+            {!isEditing && <h4 className="font-display font-bold">Parent and registration details</h4>}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Parent Name">
+                <input value={form.parentName} onChange={(e) => set("parentName", e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="Parent Phone*">
+                <input value={form.parentPhone} onChange={(e) => set("parentPhone", e.target.value)} className={inputCls} required />
+              </Field>
+              <Field label="Address">
+                <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inputCls} />
+              </Field>
+              <Field label="Registration Date">
+                <input type="date" value={form.registrationDate} onChange={(e) => set("registrationDate", e.target.value)} className={inputCls} />
+              </Field>
+            </div>
+          </section>
+        )}
+
+        {!isEditing && step === 3 && (
+          <section className="space-y-4">
+            <h4 className="font-display font-bold">Review student information</h4>
+            <div className="grid gap-3 rounded-xl border border-stone-200 p-4 sm:grid-cols-2">
+              <ReviewItem label="Student" value={form.fullName} />
+              <ReviewItem label="Gender" value={form.gender} />
+              <ReviewItem label="Date of birth" value={form.dob || "Not provided"} />
+              <ReviewItem label="Class" value={`${selectedClass?.className || "—"} ${selectedClass?.department || ""}`} />
+              <ReviewItem label="Parent" value={form.parentName || "Not provided"} />
+              <ReviewItem label="Parent phone" value={form.parentPhone} />
+              <ReviewItem label="Tuition" value={`${tuitionFee.toLocaleString()} XAF`} />
+              <ReviewItem label="Installments" value={`${installmentCount} equal payments`} />
+              <ReviewItem label="Registration fee" value={registrationRequired ? `${registrationAmount.toLocaleString()} XAF required` : "Not required"} />
+              <ReviewItem label="Total required" value={`${(tuitionFee + registrationAmount).toLocaleString()} XAF`} />
+            </div>
+            <p className="text-xs text-black/50">The fee plan is saved with the student. Payments can be recorded later under Fees & Finance.</p>
+          </section>
+        )}
 
         <div className="flex justify-end gap-2 mt-6">
           <button
@@ -825,12 +898,22 @@ function StudentDialog({
           >
             Cancel
           </button>
+          {!isEditing && step > 0 && (
+            <button
+              type="button"
+              onClick={() => setStep((current) => Math.max(0, current - 1))}
+              className="px-4 py-2.5 rounded-xl border border-stone-200 text-sm font-semibold hover:bg-stone-50"
+              disabled={saving}
+            >
+              Back
+            </button>
+          )}
           <button
             onClick={handleSave}
             className="px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={saving}
           >
-            {saving ? "Saving..." : isEditing ? "Update Student" : "Save Student"}
+            {saving ? "Saving..." : isEditing ? "Update Student" : step < steps.length - 1 ? "Continue" : "Add Student"}
           </button>
         </div>
       </div>
@@ -839,6 +922,15 @@ function StudentDialog({
 }
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-stone-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand";
+
+function ReviewItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-black/40">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-[#121212]">{value}</p>
+    </div>
+  );
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

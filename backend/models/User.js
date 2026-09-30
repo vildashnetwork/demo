@@ -40,6 +40,11 @@ const userschema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    monthlySalary: {
+        type: Number,
+        min: [0, "Monthly salary cannot be negative"],
+        default: 0
+    },
     availableDays: {
         type: [String],
         default: []
