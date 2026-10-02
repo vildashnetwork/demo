@@ -466,6 +466,10 @@ import mongoose from "mongoose";
 import User from "../models/User.js";
 import Timetable from '../models/Timetable.js';
 const router = express.Router();
+const getSectionFilter = (req) => {
+  const section = String(req.query.section || req.get('x-school-section') || '').trim().toLowerCase();
+  return ['englophone', 'francophone'].includes(section) ? { section } : {};
+};
 
 // ============================================
 // GET Teacher Timetable
@@ -473,7 +477,8 @@ const router = express.Router();
 
 router.get('/teacher/timetable', async (req, res) => {
   try {
-    const { teacherId, username, email } = req.query;
+    const { teacherId, username, email, section } = req.query;
+    const sectionMatch = getSectionFilter(req);
 
     console.log('📌 Fetching teacher timetable:', { teacherId, username, email });
 
@@ -482,20 +487,21 @@ router.get('/teacher/timetable', async (req, res) => {
     if (teacherId) {
       // Check if it's a valid ObjectId
       if (mongoose.Types.ObjectId.isValid(teacherId)) {
-        teacher = await User.findById(teacherId);
+        teacher = await User.findOne({ _id: teacherId, ...sectionMatch });
       } else {
         // Try to find by username or id string
         teacher = await User.findOne({
           $or: [
             { username: teacherId },
             { _id: teacherId }
-          ]
+          ],
+          ...sectionMatch
         });
       }
     } else if (username) {
-      teacher = await User.findOne({ username: username });
+      teacher = await User.findOne({ username, ...sectionMatch });
     } else if (email) {
-      teacher = await User.findOne({ email: email });
+      teacher = await User.findOne({ email, ...sectionMatch });
     } else {
       return res.status(400).json({
         success: false,
@@ -526,7 +532,8 @@ router.get('/teacher/timetable', async (req, res) => {
 
     let filter = {
       teacherId: teacher._id,
-      isActive: true
+      isActive: true,
+      ...sectionMatch
     };
 
     if (day) filter.day = day;
@@ -596,6 +603,7 @@ router.get('/teacher/timetable', async (req, res) => {
 router.get('/teacher/weekly', async (req, res) => {
   try {
     const { teacherId, username, email, academicYear } = req.query;
+    const sectionMatch = getSectionFilter(req);
 
     console.log('📌 Fetching weekly schedule:', { teacherId, username, email });
 
@@ -603,19 +611,20 @@ router.get('/teacher/weekly', async (req, res) => {
     let teacher;
     if (teacherId) {
       if (mongoose.Types.ObjectId.isValid(teacherId)) {
-        teacher = await User.findById(teacherId);
+        teacher = await User.findOne({ _id: teacherId, ...sectionMatch });
       } else {
         teacher = await User.findOne({
           $or: [
             { username: teacherId },
             { _id: teacherId }
-          ]
+          ],
+          ...sectionMatch
         });
       }
     } else if (username) {
-      teacher = await User.findOne({ username: username });
+      teacher = await User.findOne({ username, ...sectionMatch });
     } else if (email) {
-      teacher = await User.findOne({ email: email });
+      teacher = await User.findOne({ email, ...sectionMatch });
     } else {
       return res.status(400).json({
         success: false,
@@ -640,6 +649,7 @@ router.get('/teacher/weekly', async (req, res) => {
       timetable = await Timetable.find({
         teacherId: teacher._id,
         isActive: true,
+        ...sectionMatch,
         academicYear: academicYear || '2024-2025'
       })
         .populate('classId', 'className department')
@@ -691,6 +701,7 @@ router.get('/teacher/schedule/:day', async (req, res) => {
   try {
     const { day } = req.params;
     const { teacherId, username, email, academicYear } = req.query;
+    const sectionMatch = getSectionFilter(req);
 
     console.log(`📌 Fetching schedule for ${day}:`, { teacherId, username, email });
 
@@ -698,19 +709,20 @@ router.get('/teacher/schedule/:day', async (req, res) => {
     let teacher;
     if (teacherId) {
       if (mongoose.Types.ObjectId.isValid(teacherId)) {
-        teacher = await User.findById(teacherId);
+        teacher = await User.findOne({ _id: teacherId, ...sectionMatch });
       } else {
         teacher = await User.findOne({
           $or: [
             { username: teacherId },
             { _id: teacherId }
-          ]
+          ],
+          ...sectionMatch
         });
       }
     } else if (username) {
-      teacher = await User.findOne({ username: username });
+      teacher = await User.findOne({ username, ...sectionMatch });
     } else if (email) {
-      teacher = await User.findOne({ email: email });
+      teacher = await User.findOne({ email, ...sectionMatch });
     } else {
       return res.status(400).json({
         success: false,
@@ -733,6 +745,7 @@ router.get('/teacher/schedule/:day', async (req, res) => {
         teacherId: teacher._id,
         day: day,
         isActive: true,
+        ...sectionMatch,
         academicYear: academicYear || '2024-2025'
       })
         .populate('classId', 'className department')
@@ -813,7 +826,7 @@ router.get("/users/:id", async (req, res) => {
       });
     }
 
-    const user = await User.findById(id);
+    const user = await User.findOne({ _id: id, ...getSectionFilter(req) });
 
     if (!user) {
       return res.status(404).json({
@@ -839,7 +852,7 @@ router.get("/users/:id", async (req, res) => {
 router.get("/users/role/:role", async (req, res) => {
   try {
     const { role } = req.params;
-    const users = await User.find({ role });
+    const users = await User.find({ role, ...getSectionFilter(req) });
 
     res.status(200).json({
       success: true,
@@ -859,7 +872,7 @@ router.get("/users/role/:role", async (req, res) => {
 router.get("/users/academic-year/:year", async (req, res) => {
   try {
     const { year } = req.params;
-    const users = await User.find({ acedemicYear: year });
+    const users = await User.find({ acedemicYear: year, ...getSectionFilter(req) });
 
     res.status(200).json({
       success: true,
@@ -880,9 +893,7 @@ router.post("/users", async (req, res) => {
   try {
     const userData = req.body;
 
-    if (!userData.section) {
-      userData.section = 'englophone';
-    }
+    userData.section = userData.section || req.get('x-school-section') || 'englophone';
 
     const existingUser = await User.findOne({
       $or: [

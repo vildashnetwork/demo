@@ -12,6 +12,10 @@ import {
 } from "../services/matriculeService.js";
 
 const router = express.Router();
+const sectionFilter = (req) => {
+    const section = String(req.query.section || req.get("x-school-section") || "").trim().toLowerCase();
+    return ["englophone", "francophone"].includes(section) ? { section } : {};
+};
 
 /**
  * Clean the matricule coming from an update payload:
@@ -46,8 +50,7 @@ const sanitizeMatriculePayload = async (studentData = {}, ignoreId = null) => {
 // GET all students
 router.get("/students", async (req, res) => {
     try {
-        const section = req.query.section ? String(req.query.section).trim().toLowerCase() : "";
-        const filter = section ? { section } : {};
+        const filter = sectionFilter(req);
         const records = await Student.find(filter).sort({ fullName: 1 }).lean();
         const students = records.map((student) => ({
             ...student,
@@ -113,10 +116,10 @@ router.get("/students/by-matricule/:matricule", async (req, res) => {
             return res.status(400).json({ success: false, message: "A matricule is required" });
         }
 
-        const exact = await Student.findOne({ matricule: value }).lean();
+        const exact = await Student.findOne({ matricule: value, ...sectionFilter(req) }).lean();
         if (exact) return res.status(200).json({ success: true, count: 1, data: exact });
 
-        const partial = await Student.find({ matricule: { $regex: value, $options: "i" } })
+        const partial = await Student.find({ matricule: { $regex: value, $options: "i" }, ...sectionFilter(req) })
             .sort({ matricule: 1 })
             .limit(20)
             .lean();
@@ -143,8 +146,7 @@ router.get("/students/:id", async (req, res) => {
             });
         }
 
-        const section = ["englophone", "francophone"].includes(String(req.query.section)) ? String(req.query.section) : null;
-        const student = await Student.findOne({ _id: id, ...(section ? { section } : {}) });
+        const student = await Student.findOne({ _id: id, ...sectionFilter(req) });
 
         if (!student) {
             return res.status(404).json({
@@ -170,7 +172,7 @@ router.get("/students/:id", async (req, res) => {
 router.get("/students/gender/:gender", async (req, res) => {
     try {
         const { gender } = req.params;
-        const students = await Student.find({ gender }).sort({ fullName: 1 });
+        const students = await Student.find({ gender, ...sectionFilter(req) }).sort({ fullName: 1 });
 
         res.status(200).json({
             success: true,
@@ -190,8 +192,7 @@ router.get("/students/gender/:gender", async (req, res) => {
 router.get("/students/class/:classId", async (req, res) => {
     try {
         const { classId } = req.params;
-        const section = req.query.section ? String(req.query.section).trim().toLowerCase() : "";
-        const filter = { classId, ...(section ? { section } : {}) };
+        const filter = { classId, ...sectionFilter(req) };
         const students = await Student.find(filter).sort({ fullName: 1 });
 
         res.status(200).json({
@@ -212,7 +213,7 @@ router.get("/students/class/:classId", async (req, res) => {
 router.get("/students/department/:department", async (req, res) => {
     try {
         const { department } = req.params;
-        const students = await Student.find({ department }).sort({ fullName: 1 });
+        const students = await Student.find({ department, ...sectionFilter(req) }).sort({ fullName: 1 });
 
         res.status(200).json({
             success: true,
@@ -232,7 +233,7 @@ router.get("/students/department/:department", async (req, res) => {
 router.get("/students/parent-phone/:parentPhone", async (req, res) => {
     try {
         const { parentPhone } = req.params;
-        const students = await Student.find({ parentPhone });
+        const students = await Student.find({ parentPhone, ...sectionFilter(req) });
 
         res.status(200).json({
             success: true,
@@ -251,9 +252,7 @@ router.get("/students/parent-phone/:parentPhone", async (req, res) => {
 // GET students with outstanding fees
 router.get("/students/outstanding-fees", async (req, res) => {
     try {
-        const students = await Student.find({
-            feesDue: { $gt: 0 }
-        }).sort({ feesDue: -1 });
+        const students = await Student.find({ feesDue: { $gt: 0 }, ...sectionFilter(req) }).sort({ feesDue: -1 });
 
         res.status(200).json({
             success: true,
@@ -272,9 +271,7 @@ router.get("/students/outstanding-fees", async (req, res) => {
 // GET students with fully paid fees
 router.get("/students/fully-paid", async (req, res) => {
     try {
-        const students = await Student.find({
-            feesDue: 0
-        }).sort({ fullName: 1 });
+        const students = await Student.find({ feesDue: 0, ...sectionFilter(req) }).sort({ fullName: 1 });
 
         res.status(200).json({
             success: true,
@@ -295,6 +292,7 @@ router.get("/students/search/:name", async (req, res) => {
     try {
         const { name } = req.params;
         const students = await Student.find({
+            ...sectionFilter(req),
             $or: [
                 { fullName: { $regex: name, $options: 'i' } },
                 { matricule: { $regex: name, $options: 'i' } }
@@ -318,7 +316,7 @@ router.get("/students/search/:name", async (req, res) => {
 // GET student statistics
 router.get("/students/stats/summary", async (req, res) => {
     try {
-        const students = await Student.find();
+        const students = await Student.find(sectionFilter(req));
 
         const genderCount = { male: 0, female: 0 };
         const classCount = {};

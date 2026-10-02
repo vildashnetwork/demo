@@ -3,14 +3,17 @@ import mongoose from "mongoose";
 import Subject from "../models/Subject.js"; // Adjust the path as needed
 
 const router = express.Router();
+const sectionFilter = (req) => {
+    const section = String(req.query.section || req.get("x-school-section") || "").trim().toLowerCase();
+    return ["englophone", "francophone"].includes(section) ? { section } : {};
+};
 
 // ==================== GET ROUTES ====================
 
 // GET all subjects
 router.get("/subjects", async (req, res) => {
     try {
-        const section = req.query.section ? String(req.query.section).trim().toLowerCase() : "";
-        const filter = section ? { section } : {};
+        const filter = sectionFilter(req);
         const subjects = await Subject.find(filter).sort({ name: 1 }).lean();
         res.status(200).json({
             success: true,
@@ -38,7 +41,7 @@ router.get("/subjects/:id", async (req, res) => {
             });
         }
 
-        const subject = await Subject.findById(id);
+        const subject = await Subject.findOne({ _id: id, ...sectionFilter(req) });
 
         if (!subject) {
             return res.status(404).json({
@@ -64,7 +67,7 @@ router.get("/subjects/:id", async (req, res) => {
 router.get("/subjects/code/:code", async (req, res) => {
     try {
         const { code } = req.params;
-        const subject = await Subject.findOne({ code });
+        const subject = await Subject.findOne({ code, ...sectionFilter(req) });
 
         if (!subject) {
             return res.status(404).json({
@@ -90,7 +93,7 @@ router.get("/subjects/code/:code", async (req, res) => {
 router.get("/subjects/cycle/:cycle", async (req, res) => {
     try {
         const { cycle } = req.params;
-        const subjects = await Subject.find({ cycle }).sort({ name: 1 });
+        const subjects = await Subject.find({ cycle, ...sectionFilter(req) }).sort({ name: 1 });
 
         res.status(200).json({
             success: true,
@@ -110,7 +113,7 @@ router.get("/subjects/cycle/:cycle", async (req, res) => {
 router.get("/subjects/class/:classId", async (req, res) => {
     try {
         const { classId } = req.params;
-        const subjects = await Subject.find({ classIds: classId }).sort({ name: 1 });
+        const subjects = await Subject.find({ classIds: classId, ...sectionFilter(req) }).sort({ name: 1 });
 
         res.status(200).json({
             success: true,
@@ -130,7 +133,7 @@ router.get("/subjects/class/:classId", async (req, res) => {
 router.get("/subjects/teacher/:teacherId", async (req, res) => {
     try {
         const { teacherId } = req.params;
-        const subjects = await Subject.find({ teacherIds: teacherId }).sort({ name: 1 });
+        const subjects = await Subject.find({ teacherIds: teacherId, ...sectionFilter(req) }).sort({ name: 1 });
 
         res.status(200).json({
             success: true,
@@ -151,7 +154,8 @@ router.get("/subjects/high-coefficient/:minCoefficient", async (req, res) => {
     try {
         const { minCoefficient } = req.params;
         const subjects = await Subject.find({
-            coefficient: { $gte: parseInt(minCoefficient) }
+            coefficient: { $gte: parseInt(minCoefficient) },
+            ...sectionFilter(req)
         }).sort({ coefficient: -1 });
 
         res.status(200).json({
@@ -180,9 +184,7 @@ router.post("/subjects/classes", async (req, res) => {
             });
         }
 
-        const subjects = await Subject.find({
-            classIds: { $in: classIds }
-        }).sort({ name: 1 });
+        const subjects = await Subject.find({ classIds: { $in: classIds }, ...sectionFilter(req) }).sort({ name: 1 });
 
         res.status(200).json({
             success: true,
@@ -210,9 +212,7 @@ router.post("/subjects/teachers", async (req, res) => {
             });
         }
 
-        const subjects = await Subject.find({
-            teacherIds: { $in: teacherIds }
-        }).sort({ name: 1 });
+        const subjects = await Subject.find({ teacherIds: { $in: teacherIds }, ...sectionFilter(req) }).sort({ name: 1 });
 
         res.status(200).json({
             success: true,
@@ -233,7 +233,8 @@ router.get("/subjects/search/:name", async (req, res) => {
     try {
         const { name } = req.params;
         const subjects = await Subject.find({
-            name: { $regex: name, $options: 'i' } // Case-insensitive search
+            name: { $regex: name, $options: 'i' },
+            ...sectionFilter(req),
         }).sort({ name: 1 });
 
         res.status(200).json({
@@ -253,7 +254,7 @@ router.get("/subjects/search/:name", async (req, res) => {
 // GET summary statistics for subjects
 router.get("/subjects/stats/summary", async (req, res) => {
     try {
-        const subjects = await Subject.find();
+        const subjects = await Subject.find(sectionFilter(req));
 
         // Count by cycle
         const cycleCount = {};
@@ -303,9 +304,10 @@ router.get("/subjects/stats/summary", async (req, res) => {
 router.post("/subjects", async (req, res) => {
     try {
         const subjectData = req.body;
+        subjectData.section = subjectData.section || req.get("x-school-section") || "englophone";
 
         // Check if subject code already exists
-        const existingSubject = await Subject.findOne({ code: subjectData.code });
+        const existingSubject = await Subject.findOne({ code: subjectData.code, section: subjectData.section });
         if (existingSubject) {
             return res.status(400).json({
                 success: false,

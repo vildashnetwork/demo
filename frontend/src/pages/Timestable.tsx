@@ -10,6 +10,7 @@ import {
 import { toast } from "sonner";
 import axios from "axios";
 import html2canvas from "html2canvas-pro";
+import { getStoredSchoolSection, type SchoolSection } from "@/lib/schoolSystem";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.com/api";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
@@ -230,7 +231,7 @@ function sanitizeEntry(entry: TimetableEntry): TimetableEntry {
 
 function saveToLocalStorage(key: string, data: any) {
   try {
-    localStorage.setItem(`timetable_${key}`, JSON.stringify(data));
+    localStorage.setItem(`timetable_${getStoredSchoolSection()}_${key}`, JSON.stringify(data));
   } catch (error) {
     console.error("Error saving to localStorage:", error);
   }
@@ -238,7 +239,7 @@ function saveToLocalStorage(key: string, data: any) {
 
 function loadFromLocalStorage(key: string) {
   try {
-    const data = localStorage.getItem(`timetable_${key}`);
+    const data = localStorage.getItem(`timetable_${getStoredSchoolSection()}_${key}`);
     return data ? JSON.parse(data) : null;
   } catch (error) {
     console.error("Error loading from localStorage:", error);
@@ -609,8 +610,13 @@ function getClassDisplayName(classItem?: Class, fallback = "Unknown Class") {
   return classItem.department ? `${classItem.className} ${classItem.department}` : classItem.className;
 }
 
-function generateMockData() {
-  const mockTeachers: Teacher[] = [
+function generateMockData(section: SchoolSection = getStoredSchoolSection()) {
+  const isFrancophone = section === "francophone";
+  const mockTeachers: Teacher[] = isFrancophone ? [
+    { _id: "fr_t1", name: "Clarisse Mbarga", email: "clarisse@example.school", phone: "691100001", qualification: "Lettres modernes", subjectIds: ["fr_s1"], classIds: ["fr_c1"] },
+    { _id: "fr_t2", name: "Jean-Paul Nguema", email: "jeanpaul@example.school", phone: "691100002", qualification: "Mathématiques", subjectIds: ["fr_s2"], classIds: ["fr_c2"] },
+    { _id: "fr_t3", name: "Solange Tchoumi", email: "solange@example.school", phone: "691100003", qualification: "Sciences de la vie", subjectIds: ["fr_s3"], classIds: ["fr_c3"] },
+  ] : [
     { _id: "t1", name: "John Doe", email: "john@school.com", phone: "699123456", qualification: "BSc Math", subjectIds: ["s1"], classIds: ["c1"] },
     { _id: "t2", name: "Jane Smith", email: "jane@school.com", phone: "699234567", qualification: "BEd English", subjectIds: ["s2"], classIds: ["c2"] },
     { _id: "t3", name: "Michael Brown", email: "michael@school.com", phone: "699345678", qualification: "PhD Physics", subjectIds: ["s3"], classIds: ["c3"] },
@@ -618,7 +624,13 @@ function generateMockData() {
     { _id: "t5", name: "David Kim", email: "david@school.com", phone: "699567890", qualification: "BEd History", subjectIds: ["s5"], classIds: ["c3"] },
   ];
 
-  const mockClasses: Class[] = [
+  const mockClasses: Class[] = isFrancophone ? [
+    { _id: "fr_c1", className: "6ème", department: "General", cycle: "1st Cycle" },
+    { _id: "fr_c2", className: "3ème", department: "General", cycle: "1st Cycle" },
+    { _id: "fr_c3", className: "Seconde", department: "Science", cycle: "2nd Cycle" },
+    { _id: "fr_c4", className: "Première", department: "Arts", cycle: "2nd Cycle" },
+    { _id: "fr_c5", className: "Terminale", department: "Science", cycle: "2nd Cycle" },
+  ] : [
     { _id: "c1", className: "Form 4", department: "Science A", cycle: "First Cycle" },
     { _id: "c2", className: "Form 5", department: "Science A", cycle: "Second Cycle" },
     { _id: "c3", className: "Form 3", department: "Arts", cycle: "First Cycle" },
@@ -626,7 +638,13 @@ function generateMockData() {
     { _id: "c5", className: "Form 5", department: "Arts", cycle: "Second Cycle" },
   ];
 
-  const mockSubjects: Subject[] = [
+  const mockSubjects: Subject[] = isFrancophone ? [
+    { _id: "fr_s1", name: "Français", code: "FR-FRA" },
+    { _id: "fr_s2", name: "Mathématiques", code: "FR-MTH" },
+    { _id: "fr_s3", name: "Sciences de la vie et de la terre", code: "FR-SVT" },
+    { _id: "fr_s4", name: "Histoire", code: "FR-HIS" },
+    { _id: "fr_s5", name: "Géographie", code: "FR-GEO" },
+  ] : [
     { _id: "s1", name: "Mathematics", code: "MATH" },
     { _id: "s2", name: "English", code: "ENG" },
     { _id: "s3", name: "Physics", code: "PHY" },

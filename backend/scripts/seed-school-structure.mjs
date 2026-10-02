@@ -30,8 +30,8 @@ const classSeed = [
     { className: "Upper 6th", department: "Science", cycle: "2nd Cycle", section: "A", tuitionFee: 360000, tuitionInstallments: 4, registrationFeeRequired: true, registrationFeeAmount: 45000 },
 ];
 
-const firstCycleLevels = ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "6ème", "5ème", "4ème", "3ème"];
-const secondCycleLevels = ["Lower 6th", "Upper 6th", "Seconde", "Première", "Terminale"];
+const firstCycleLevels = ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5"];
+const secondCycleLevels = ["Lower 6th", "Upper 6th"];
 const industrialDepartments = [
     "Electrical & Electronics",
     "Civil Engineering & Woodwork",
@@ -64,7 +64,7 @@ const firstCycleLevelsByTrack = {
     Mechanical: firstCycleLevels,
     "Home Economics & Social": firstCycleLevels,
     Accounting: firstCycleLevels,
-    "Marketing & Sales": ["Form 3", "Form 4", "Form 5", "4ème", "3ème"],
+    "Marketing & Sales": ["Form 3", "Form 4", "Form 5"],
     "Secretarial Administration & Communication": firstCycleLevels,
     "Home Economics & Social Care": firstCycleLevels,
 };
@@ -101,6 +101,16 @@ for (const [department, classNames] of Object.entries(secondCycleLevelsByTrack))
         });
     }
 }
+
+const legacyAnglophoneLevelMap = {
+    "6ème": "Form 1",
+    "5ème": "Form 2",
+    "4ème": "Form 3",
+    "3ème": "Form 4",
+    Seconde: "Form 5",
+    Première: "Lower 6th",
+    Terminale: "Upper 6th",
+};
 
 const subjectSeed = [
     { name: "English Language", code: "ENG", coefficient: 4, cycle: "1st Cycle", classNames: firstCycleLevels, departments: firstCycleVocationalDepartments, periodsPerWeek: 5 },
@@ -209,9 +219,9 @@ addVocationalSubject("Financial Reporting & Corporate Accounting", "FRC", 5, ["A
 addVocationalSubject("Cost & Management Accounting", "CMA", 5, ["Accounting"], allCommercialLevels, 5);
 addVocationalSubject("Computer-Aided Accounting", "CAA", 4, ["Accounting"], allCommercialLevels, 4);
 
-addVocationalSubject("Professional Marketing Practice", "PMP", 5, ["Marketing & Sales"], ["Form 3", "Form 4", "Form 5", "4ème", "3ème", ...secondCycleLevels], 5);
-addVocationalSubject("Product Mastery and Sales Methods", "PMS", 5, ["Marketing & Sales"], ["Form 3", "Form 4", "Form 5", "4ème", "3ème", ...secondCycleLevels], 5);
-addVocationalSubject("Digital Marketing", "DGM", 4, ["Marketing & Sales"], ["Form 3", "Form 4", "Form 5", "4ème", "3ème", ...secondCycleLevels], 4);
+addVocationalSubject("Professional Marketing Practice", "PMP", 5, ["Marketing & Sales"], ["Form 3", "Form 4", "Form 5", ...secondCycleLevels], 5);
+addVocationalSubject("Product Mastery and Sales Methods", "PMS", 5, ["Marketing & Sales"], ["Form 3", "Form 4", "Form 5", ...secondCycleLevels], 5);
+addVocationalSubject("Digital Marketing", "DGM", 4, ["Marketing & Sales"], ["Form 3", "Form 4", "Form 5", ...secondCycleLevels], 4);
 
 addVocationalSubject("Office Practice / Office Automation", "OPA", 5, ["Secretarial Administration & Communication"], allCommercialLevels, 5);
 addVocationalSubject("Professional Communication Techniques", "PCT", 4, ["Secretarial Administration & Communication"], allCommercialLevels, 4);
@@ -220,6 +230,15 @@ addVocationalSubject("Information Processing / Word Processing", "IPW", 4, ["Sec
 addVocationalSubject("Food Science & Nutrition / Catering Management", "FSC", 5, ["Home Economics & Social Care"], allCommercialLevels, 5);
 addVocationalSubject("Resource Management on Home Studies", "RMH", 4, ["Home Economics & Social Care"], allCommercialLevels, 4);
 addVocationalSubject("Family Life Education & Gerontology", "FLE", 3, ["Home Economics & Social Care"], allCommercialLevels, 3);
+
+const francophoneClassLevels = new Set(["6ème", "5ème", "4ème", "3ème", "Seconde", "Première", "Terminale"]);
+const invalidAnglophoneLevels = [
+    ...classSeed.filter((schoolClass) => francophoneClassLevels.has(schoolClass.className)).map((schoolClass) => schoolClass.className),
+    ...subjectSeed.flatMap((subject) => subject.classNames.filter((className) => francophoneClassLevels.has(className))),
+];
+if (invalidAnglophoneLevels.length) {
+    throw new Error(`Anglophone seed contains Francophone class levels: ${[...new Set(invalidAnglophoneLevels)].join(", ")}`);
+}
 
 const userSeed = [
     { name: "Awa Ndeh", username: "admin01", phone: "+237650000001", role: "admin", qualification: "School Administrator", subjectIds: [], classIds: [], isPermanent: true, monthlySalary: 0, availableDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], acedemicYear: ACADEMIC_YEAR },
@@ -307,6 +326,15 @@ function getClassKey(className, department) {
 }
 
 async function main() {
+    if (process.env.SEED_DRY_RUN === "1") {
+        console.log("Anglophone scheme validated:", {
+            classes: classSeed.length,
+            subjects: subjectSeed.length,
+            classLevels: [...new Set(classSeed.map((schoolClass) => schoolClass.className))],
+        });
+        return;
+    }
+
     const connectionUri = process.env.SEED_DB === "offline" ? process.env.MONGOURIOFFLINE : process.env.MONGOURI;
     if (!connectionUri) {
         throw new Error("Neither MONGOURIOFFLINE nor MONGOURI is defined in the environment.");
@@ -342,6 +370,40 @@ async function main() {
 
         createdClassIds.set(getClassKey(schoolClass.className, schoolClass.department), doc._id.toString());
         console.log(`Seeded class: ${schoolClass.className} / ${schoolClass.department}`);
+    }
+
+    let migratedLegacyClassCount = 0;
+    for (const [legacyName, targetName] of Object.entries(legacyAnglophoneLevelMap)) {
+        const legacyClasses = await SchoolClass.find({
+            className: legacyName,
+            schoolSection: SECTION,
+            acedemicYear: ACADEMIC_YEAR,
+        }).select("_id department").lean();
+
+        for (const legacyClass of legacyClasses) {
+            const targetClassId = createdClassIds.get(getClassKey(targetName, legacyClass.department));
+            if (!targetClassId) {
+                console.warn(`Skipping legacy ${legacyName} class without an Anglophone ${targetName} match (${legacyClass.department}).`);
+                continue;
+            }
+
+            const legacyClassId = String(legacyClass._id);
+            await Promise.all([
+                Student.updateMany({ classId: legacyClassId, section: SECTION }, { $set: { classId: targetClassId } }),
+                Mark.updateMany({ classId: legacyClassId, section: SECTION }, { $set: { classId: targetClassId } }),
+                StudentAttendance.updateMany({ classId: legacyClassId, section: SECTION }, { $set: { classId: targetClassId } }),
+                Timetable.updateMany(
+                    { classId: legacyClass._id, section: SECTION },
+                    { $set: { classId: new mongoose.Types.ObjectId(targetClassId) } }
+                ),
+                User.updateMany({ section: SECTION, classIds: legacyClassId }, { $pull: { classIds: legacyClassId } }),
+            ]);
+            await SchoolClass.deleteOne({ _id: legacyClass._id, schoolSection: SECTION });
+            migratedLegacyClassCount += 1;
+        }
+    }
+    if (migratedLegacyClassCount) {
+        console.log(`Migrated and removed ${migratedLegacyClassCount} mis-seeded Anglophone Francophone-level classes; linked records were preserved.`);
     }
 
     const createdSubjectIds = new Map();

@@ -377,7 +377,7 @@ export function TeachersPage() {
             qualification: "",
             phone: "",
             email: "",
-            section: "englophone",
+            section: classes[0]?.schoolSection || getStoredSchoolSection(),
             subjectIds: [],
             classIds: [],
             role: "teacher",
@@ -436,15 +436,6 @@ function TeacherDialog({
       ? current.filter((x: string) => x !== id)
       : [...current, id];
     set("classIds", updated);
-  };
-
-  const changeSection = (section: Teacher["section"]) => {
-    setForm((current) => ({
-      ...current,
-      section,
-      subjectIds: current.subjectIds.filter((id) => subjects.find((subject) => subject.id === id)?.section === section),
-      classIds: current.classIds.filter((id) => classes.find((schoolClass) => schoolClass.id === id)?.schoolSection === section),
-    }));
   };
 
   const filteredSubjects = subjects.filter(s =>
@@ -539,11 +530,10 @@ function TeacherDialog({
           <section className="space-y-4">
             {!isEditing && <h4 className="font-display font-bold">Teacher profile</h4>}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Section*">
-                <select value={form.section || "englophone"} onChange={(e) => changeSection(e.target.value as Teacher["section"])} className={inputCls}>
-                  <option value="englophone">Anglophone</option>
-                  <option value="francophone">Francophone</option>
-                </select>
+              <Field label="School Section">
+                <div className={`${inputCls} text-black/60`}>
+                  {form.section === "francophone" ? "Francophone" : "Anglophone"}
+                </div>
               </Field>
               <Field label="Full Name*">
                 <input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} className={inputCls} required autoFocus={!isEditing} />

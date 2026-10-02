@@ -51,6 +51,7 @@ function getLocalIP() {
 // ==================== MIDDLEWARE ====================
 // JSON parsing with error handling
 app.use(express.json({
+    limit: "8mb",
     verify: (req, res, buf) => {
         try {
             JSON.parse(buf);

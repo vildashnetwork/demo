@@ -4,13 +4,23 @@ import SchoolClass from "../models/SchoolClass.js";
 
 const router = express.Router();
 
+const sectionFilter = (req) => {
+    const section = String(req.query.section || req.get("x-school-section") || "").trim().toLowerCase();
+    return ["englophone", "francophone"].includes(section) ? { schoolSection: section } : {};
+};
+const isClassLevelAllowed = (className, section) => {
+    const levels = section === "francophone"
+        ? ["6ème", "5ème", "4ème", "3ème", "Seconde", "Première", "Terminale", "Graduated"]
+        : ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower 6th", "Upper 6th", "Graduated"];
+    return levels.includes(className);
+};
+
 // ==================== GET ROUTES ====================
 
 // Get all classes
 router.get("/classes", async (req, res) => {
     try {
-        const section = req.query.section ? String(req.query.section).trim().toLowerCase() : "";
-        const filter = section ? { $or: [{ schoolSection: section }, { section }] } : {};
+        const filter = sectionFilter(req);
         const records = await SchoolClass.find(filter).sort({ className: 1 }).lean();
         const classes = records.map((schoolClass) => ({
             ...schoolClass,
@@ -42,7 +52,7 @@ router.get("/classes/:id", async (req, res) => {
             });
         }
 
-        const schoolClass = await SchoolClass.findById(id);
+        const schoolClass = await SchoolClass.findOne({ _id: id, ...sectionFilter(req) });
         if (!schoolClass) {
             return res.status(404).json({
                 success: false,
@@ -66,7 +76,7 @@ router.get("/classes/:id", async (req, res) => {
 // Get classes by department
 router.get("/classes/department/:department", async (req, res) => {
     try {
-        const classes = await SchoolClass.find({ department: req.params.department });
+        const classes = await SchoolClass.find({ department: req.params.department, ...sectionFilter(req) });
         res.status(200).json({
             success: true,
             count: classes.length,
@@ -84,7 +94,7 @@ router.get("/classes/department/:department", async (req, res) => {
 // Get classes by cycle
 router.get("/classes/cycle/:cycle", async (req, res) => {
     try {
-        const classes = await SchoolClass.find({ cycle: req.params.cycle });
+        const classes = await SchoolClass.find({ cycle: req.params.cycle, ...sectionFilter(req) });
         res.status(200).json({
             success: true,
             count: classes.length,
@@ -102,7 +112,7 @@ router.get("/classes/cycle/:cycle", async (req, res) => {
 // Get classes by academic year
 router.get("/classes/academic-year/:acedemicYear", async (req, res) => {
     try {
-        const classes = await SchoolClass.find({ acedemicYear: req.params.acedemicYear });
+        const classes = await SchoolClass.find({ acedemicYear: req.params.acedemicYear, ...sectionFilter(req) });
         res.status(200).json({
             success: true,
             count: classes.length,
@@ -120,7 +130,7 @@ router.get("/classes/academic-year/:acedemicYear", async (req, res) => {
 // Get classes by class master
 router.get("/classes/master/:classMasterId", async (req, res) => {
     try {
-        const classes = await SchoolClass.find({ classMasterId: req.params.classMasterId });
+        const classes = await SchoolClass.find({ classMasterId: req.params.classMasterId, ...sectionFilter(req) });
         res.status(200).json({
             success: true,
             count: classes.length,
@@ -138,7 +148,7 @@ router.get("/classes/master/:classMasterId", async (req, res) => {
 // Get class statistics
 router.get("/classes/stats", async (req, res) => {
     try {
-        const classes = await SchoolClass.find();
+        const classes = await SchoolClass.find(sectionFilter(req));
         const stats = {
             total: classes.length,
             byDepartment: {},
@@ -172,8 +182,9 @@ router.post("/classes", async (req, res) => {
     try {
         const classData = req.body;
 
-        if (!classData.schoolSection) {
-            classData.schoolSection = 'englophone';
+        classData.schoolSection = classData.schoolSection || req.get("x-school-section") || 'englophone';
+        if (!isClassLevelAllowed(classData.className, classData.schoolSection)) {
+            return res.status(400).json({ success: false, message: "Class level does not belong to the selected school section" });
         }
 
         // Handle academicYear to acedemicYear mapping
@@ -295,6 +306,10 @@ router.put("/classes/:id", async (req, res) => {
         }
 
         const resultingClassName = classData.className || existing.className;
+        const resultingSection = classData.schoolSection || existing.schoolSection || "englophone";
+        if (!isClassLevelAllowed(resultingClassName, resultingSection)) {
+            return res.status(400).json({ success: false, message: "Class level does not belong to the selected school section" });
+        }
         const resultingTuitionFee = classData.tuitionFee ?? existing.tuitionFee;
         const resultingInstallments = classData.tuitionInstallments ?? existing.tuitionInstallments;
         const resultingRegistrationRequired = classData.registrationFeeRequired ?? existing.registrationFeeRequired;
@@ -391,6 +406,12 @@ router.patch("/classes/:id", async (req, res) => {
                 success: false,
                 message: "Class not found"
             });
+        }
+
+        const resultingClassName = classData.className || existing.className;
+        const resultingSection = classData.schoolSection || existing.schoolSection || "englophone";
+        if (!isClassLevelAllowed(resultingClassName, resultingSection)) {
+            return res.status(400).json({ success: false, message: "Class level does not belong to the selected school section" });
         }
 
         // Trim string fields

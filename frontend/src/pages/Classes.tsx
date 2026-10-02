@@ -717,7 +717,7 @@ export function ClassesPage() {
             id: "s_" + Math.random().toString(36).slice(2, 9),
             name: "",
             code: "",
-            section: "englophone",
+            section: getStoredSchoolSection(),
             coefficient: 1,
             cycle: "1st Cycle",
             periodsPerWeek: 4,
@@ -740,7 +740,7 @@ export function ClassesPage() {
             className: "",
             department: "Science",
             cycle: "1st Cycle",
-            schoolSection: "englophone",
+            schoolSection: getStoredSchoolSection(),
             acedemicYear: "2024-2025",
             classMasterId: "",
             ratePerPeriod: 500,
@@ -1013,11 +1013,9 @@ function ClassDialog({
   const set = <K extends keyof SchoolClass>(k: K, v: SchoolClass[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const classNames = [
-    "Beginers1", "Beginers2", "Olevel 3", "Olevel 4", "Olevel 5", "Alevel", "Graduated",
-    "Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower 6th", "Upper 6th",
-    "6ème", "5ème", "4ème", "3ème", "Seconde", "Première", "Terminale"
-  ];
+  const classNames = form.schoolSection === "francophone"
+    ? ["6ème", "5ème", "4ème", "3ème", "Seconde", "Première", "Terminale", "Graduated"]
+    : ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower 6th", "Upper 6th", "Graduated"];
   const departments = [
     "General", "Science", "Arts", "Commercial", "Electrical & Electronics",
     "Civil Engineering & Woodwork", "Mechanical", "Home Economics & Social",
@@ -1151,6 +1149,8 @@ function ClassDialog({
                 setForm((current) => ({
                   ...current,
                   schoolSection,
+                  className: "",
+                  cycle: "1st Cycle",
                   classMasterId: teachers.find((teacher) => teacher.id === current.classMasterId)?.section === schoolSection ? current.classMasterId : "",
                 }));
               }}

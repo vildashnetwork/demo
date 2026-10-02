@@ -7,14 +7,18 @@ import Student from "../models/Students.js";
 import User from "../models/User.js";
 
 const router = express.Router();
+const sectionFilter = (req) => {
+    const section = String(req.query.section || req.get("x-school-section") || "").trim().toLowerCase();
+    return ["englophone", "francophone"].includes(section) ? { section } : {};
+};
 
 // ==================== GET ROUTES ====================
 
 // GET marks, optionally scoped to the selected class/student/subject/year.
 router.get("/marks", async (req, res) => {
     try {
-        const { classId, studentId, subjectId, academicyear, academicYear, sequence, section } = req.query;
-        const filter = section ? { section } : {};
+        const { classId, studentId, subjectId, academicyear, academicYear, sequence } = req.query;
+        const filter = sectionFilter(req);
         if (classId) filter.classId = String(classId);
         if (studentId) filter.studentId = String(studentId);
         if (subjectId) filter.subjectId = String(subjectId);
@@ -222,7 +226,7 @@ router.get("/marks/:id", async (req, res) => {
             });
         }
 
-        const mark = await Mark.findOne({ _id: id, ...(req.query.section ? { section: req.query.section } : {}) });
+        const mark = await Mark.findOne({ _id: id, ...sectionFilter(req) });
 
         if (!mark) {
             return res.status(404).json({
@@ -248,7 +252,7 @@ router.get("/marks/:id", async (req, res) => {
 router.get("/marks/student/:studentId", async (req, res) => {
     try {
         const { studentId } = req.params;
-        const marks = await Mark.find({ studentId }).sort({ sequence: 1 });
+        const marks = await Mark.find({ studentId, ...sectionFilter(req) }).sort({ sequence: 1 });
 
         res.status(200).json({
             success: true,
@@ -268,7 +272,7 @@ router.get("/marks/student/:studentId", async (req, res) => {
 router.get("/marks/subject/:subjectId", async (req, res) => {
     try {
         const { subjectId } = req.params;
-        const marks = await Mark.find({ subjectId }).sort({ studentId: 1 });
+        const marks = await Mark.find({ subjectId, ...sectionFilter(req) }).sort({ studentId: 1 });
 
         res.status(200).json({
             success: true,
@@ -288,7 +292,7 @@ router.get("/marks/subject/:subjectId", async (req, res) => {
 router.get("/marks/class/:classId", async (req, res) => {
     try {
         const { classId } = req.params;
-        const marks = await Mark.find({ classId }).sort({ studentId: 1, sequence: 1 });
+        const marks = await Mark.find({ classId, ...sectionFilter(req) }).sort({ studentId: 1, sequence: 1 });
 
         res.status(200).json({
             success: true,
@@ -308,7 +312,7 @@ router.get("/marks/class/:classId", async (req, res) => {
 router.get("/marks/academic-year/:academicyear", async (req, res) => {
     try {
         const { academicyear } = req.params;
-        const marks = await Mark.find({ academicyear });
+        const marks = await Mark.find({ academicyear, ...sectionFilter(req) });
 
         res.status(200).json({
             success: true,
@@ -328,7 +332,7 @@ router.get("/marks/academic-year/:academicyear", async (req, res) => {
 router.get("/marks/student/:studentId/subject/:subjectId", async (req, res) => {
     try {
         const { studentId, subjectId } = req.params;
-        const marks = await Mark.find({ studentId, subjectId }).sort({ sequence: 1 });
+        const marks = await Mark.find({ studentId, subjectId, ...sectionFilter(req) }).sort({ sequence: 1 });
 
         res.status(200).json({
             success: true,
@@ -348,7 +352,7 @@ router.get("/marks/student/:studentId/subject/:subjectId", async (req, res) => {
 router.get("/marks/student/:studentId/subject/:subjectId/sequence/:sequence", async (req, res) => {
     try {
         const { studentId, subjectId, sequence } = req.params;
-        const mark = await Mark.findOne({ studentId, subjectId, sequence });
+        const mark = await Mark.findOne({ studentId, subjectId, sequence, ...sectionFilter(req) });
 
         if (!mark) {
             return res.status(404).json({
@@ -374,7 +378,7 @@ router.get("/marks/student/:studentId/subject/:subjectId/sequence/:sequence", as
 router.get("/marks/recorded-by/:recordedBy", async (req, res) => {
     try {
         const { recordedBy } = req.params;
-        const marks = await Mark.find({ recordedBy });
+        const marks = await Mark.find({ recordedBy, ...sectionFilter(req) });
 
         res.status(200).json({
             success: true,
@@ -394,7 +398,7 @@ router.get("/marks/recorded-by/:recordedBy", async (req, res) => {
 router.get("/marks/student/:studentId/summary", async (req, res) => {
     try {
         const { studentId } = req.params;
-        const marks = await Mark.find({ studentId });
+        const marks = await Mark.find({ studentId, ...sectionFilter(req) });
 
         if (marks.length === 0) {
             return res.status(404).json({
@@ -463,14 +467,16 @@ router.get("/marks/student/:studentId/summary", async (req, res) => {
 // POST - Create a new mark (single)
 router.post("/marks", async (req, res) => {
     try {
-        const markData = req.body;
+        const activeSection = req.get("x-school-section") || req.body.section || "englophone";
+        const markData = { ...req.body, section: activeSection };
 
         // Check if mark already exists for this student, subject, and sequence
         const existingMark = await Mark.findOne({
             studentId: markData.studentId,
             subjectId: markData.subjectId,
             sequence: markData.sequence,
-            academicyear: markData.academicyear
+            academicyear: markData.academicyear,
+            section: activeSection
         });
 
         if (existingMark) {
@@ -509,7 +515,10 @@ router.post("/marks", async (req, res) => {
 // POST - Create multiple marks (bulk insert)
 router.post("/marks/bulk", async (req, res) => {
     try {
-        const marksData = req.body;
+        const activeSection = req.get("x-school-section") || "englophone";
+        const marksData = Array.isArray(req.body)
+            ? req.body.map((mark) => ({ ...mark, section: activeSection }))
+            : req.body;
 
         if (!Array.isArray(marksData)) {
             return res.status(400).json({
@@ -550,7 +559,7 @@ router.post("/marks/bulk", async (req, res) => {
         const duplicateCheck = {};
         const duplicates = [];
         validMarks.forEach((mark, index) => {
-            const key = `${mark.studentId}_${mark.subjectId}_${mark.sequence}_${mark.academicyear}`;
+            const key = `${mark.studentId}_${mark.subjectId}_${mark.sequence}_${mark.academicyear}_${activeSection}`;
             if (duplicateCheck[key] !== undefined) {
                 duplicates.push({
                     index,
@@ -576,7 +585,8 @@ router.post("/marks/bulk", async (req, res) => {
                 studentId: mark.studentId,
                 subjectId: mark.subjectId,
                 sequence: mark.sequence,
-                academicyear: mark.academicyear
+                academicyear: mark.academicyear,
+                section: activeSection
             }))
         });
 

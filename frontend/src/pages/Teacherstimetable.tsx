@@ -1492,6 +1492,7 @@ import {
   ChevronDown, ChevronUp, FileDown, LayoutGrid, RefreshCw
 } from "lucide-react";
 import { CompactPageLoader } from "@/components/CompactPageLoader";
+import { getStoredSchoolSection } from "@/lib/schoolSystem";
 import { toast } from "sonner";
 import axios from "axios";
 
@@ -1581,6 +1582,26 @@ const CLASSES = [
   { id: 'c13', name: 'Form 5 Arts', department: 'Arts' },
   { id: 'c14', name: 'Form 4 Commercial', department: 'Commercial' },
   { id: 'c15', name: 'Form 5 Commercial', department: 'Commercial' },
+];
+
+const FRANCOPHONE_SUBJECTS = [
+  { id: 'fr_s1', name: 'Français', code: 'FR-FRA' },
+  { id: 'fr_s2', name: 'Mathématiques', code: 'FR-MTH' },
+  { id: 'fr_s3', name: 'Sciences de la vie et de la terre', code: 'FR-SVT' },
+  { id: 'fr_s4', name: 'Histoire', code: 'FR-HIS' },
+  { id: 'fr_s5', name: 'Géographie', code: 'FR-GEO' },
+  { id: 'fr_s6', name: 'Physique', code: 'FR-PHY' },
+];
+
+const FRANCOPHONE_CLASSES = [
+  { id: 'fr_c1', name: '6ème General', department: 'General' },
+  { id: 'fr_c2', name: '5ème General', department: 'General' },
+  { id: 'fr_c3', name: '4ème General', department: 'General' },
+  { id: 'fr_c4', name: '3ème General', department: 'General' },
+  { id: 'fr_c5', name: 'Seconde Arts', department: 'Arts' },
+  { id: 'fr_c6', name: 'Seconde Science', department: 'Science' },
+  { id: 'fr_c7', name: 'Première Arts', department: 'Arts' },
+  { id: 'fr_c8', name: 'Terminale Science', department: 'Science' },
 ];
 
 // ============================================
@@ -1901,11 +1922,14 @@ export function TeacherTimetableView() {
   // ============================================
 
   const generateMockData = (userData?: any, settings: SchoolSettings = schoolSettings) => {
+    const isFrancophone = getStoredSchoolSection() === 'francophone';
+    const mockClasses = isFrancophone ? FRANCOPHONE_CLASSES : CLASSES;
+    const mockSubjects = isFrancophone ? FRANCOPHONE_SUBJECTS : SUBJECTS;
     const mockTeacher: Teacher = {
       id: 't1',
-      name: userData?.name || 'John Doe',
-      email: userData?.email || 'john@school.com',
-      username: userData?.username || 'john_doe',
+      name: userData?.name || (isFrancophone ? 'Clarisse Mbarga' : 'John Doe'),
+      email: userData?.email || (isFrancophone ? 'clarisse@example.school' : 'john@school.com'),
+      username: userData?.username || (isFrancophone ? 'clarisse_mbarga' : 'john_doe'),
       qualification: 'BSc Mathematics',
       role: 'teacher'
     };
@@ -1920,11 +1944,11 @@ export function TeacherTimetableView() {
       periodSlots.forEach((timeSlot, pi) => {
         if (Math.random() > 0.35) {
           const cycle = pi % 2 === 0 ? 'first' : 'second';
-          const classIdx = (di + pi * 2) % CLASSES.length;
-          const subjectIdx = (di + pi * 3) % SUBJECTS.length;
+          const classIdx = (di + pi * 2) % mockClasses.length;
+          const subjectIdx = (di + pi * 3) % mockSubjects.length;
 
-          const cls = CLASSES[classIdx];
-          const subj = SUBJECTS[subjectIdx];
+          const cls = mockClasses[classIdx];
+          const subj = mockSubjects[subjectIdx];
 
           mockEntries.push({
             id: `mock_${di}_${pi}_${Date.now()}`,

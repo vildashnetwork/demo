@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from "react";
-import { Search, Plus, Trash2, Pencil, Filter, Download, FileText, Printer } from "lucide-react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { Search, Plus, Trash2, Pencil, Filter, Download, FileText, Printer, Camera, ImagePlus, Upload, X } from "lucide-react";
 import { CompactPageLoader } from "@/components/CompactPageLoader";
 import { getStoredSchoolSection } from "@/lib/schoolSystem";
 import { toast } from "sonner";
@@ -668,7 +668,7 @@ export function StudentsPage() {
             id: "st_" + Math.random().toString(36).slice(2, 9),
             fullName: "",
             gender: "male",
-            section: classes[0]?.schoolSection || "englophone",
+            section: classes[0]?.schoolSection || getStoredSchoolSection(),
             dob: new Date().toISOString().slice(0, 10),
             classId: classes[0]?.id || "",
             department: classes[0]?.department || "Science",
@@ -718,7 +718,22 @@ function StudentDialog({
   const [form, setForm] = useState<Student>(initial);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState(0);
-  const steps = ["Student", "Class & fees", "Family", "Review"];
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState("");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
+  const steps = ["Student", "Class & fees", "Family", "Photo", "Review"];
+
+  useEffect(() => {
+    if (videoRef.current && cameraStream) videoRef.current.srcObject = cameraStream;
+    return () => {
+      if (videoRef.current) videoRef.current.srcObject = null;
+    };
+  }, [cameraStream]);
+
+  useEffect(() => () => {
+    cameraStream?.getTracks().forEach((track) => track.stop());
+  }, [cameraStream]);
 
   const set = <K extends keyof Student>(k: K, v: Student[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -739,16 +754,76 @@ function StudentDialog({
     }));
   };
 
-  const handleSectionChange = (section: Student["section"]) => {
-    setForm((current) => {
-      const matchingClass = classes.find((schoolClass) => schoolClass.id === current.classId && schoolClass.schoolSection === section);
-      return {
-        ...current,
-        section,
-        classId: matchingClass ? current.classId : "",
-        department: matchingClass?.department || current.department,
-      };
-    });
+  const stopCamera = () => {
+    cameraStream?.getTracks().forEach((track) => track.stop());
+    setCameraStream(null);
+  };
+
+  const startCamera = async () => {
+    setCameraError("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Camera access is unavailable. Use HTTPS or localhost, or upload a photo instead.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      setCameraStream(stream);
+    } catch (error) {
+      console.error("Unable to open student photo camera:", error);
+      setCameraError("Camera permission was denied or no camera was found. You can upload a photo instead.");
+    }
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video?.videoWidth || !video.videoHeight) {
+      setCameraError("The camera is still starting. Try again in a moment.");
+      return;
+    }
+    const scale = Math.min(1, 1280 / video.videoWidth);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    const context = canvas.getContext("2d");
+    if (!context) {
+      setCameraError("Could not capture the photo. Please try again or upload an image.");
+      return;
+    }
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    set("photoUrl", canvas.toDataURL("image/jpeg", 0.82));
+    stopCamera();
+    setCameraError("");
+  };
+
+  const uploadPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Choose an image file");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Choose an image smaller than 10 MB");
+      return;
+    }
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, 1280 / bitmap.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Unable to process this image");
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+      set("photoUrl", canvas.toDataURL("image/jpeg", 0.82));
+      stopCamera();
+      setCameraError("");
+    } catch (error) {
+      console.error("Unable to process student photo:", error);
+      toast.error("Could not load this image. Try another photo.");
+    }
   };
 
   const handleSave = async () => {
@@ -821,7 +896,7 @@ function StudentDialog({
             <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-stone-100">
               <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
             </div>
-            <ol className="grid grid-cols-4 gap-2">
+            <ol className="grid grid-cols-5 gap-2">
               {steps.map((label, index) => (
                 <li key={label}>
                   <button
@@ -845,11 +920,10 @@ function StudentDialog({
           <section className="space-y-4">
             {!isEditing && <h4 className="font-display font-bold">Student details</h4>}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Section*">
-                <select value={form.section || "englophone"} onChange={(e) => handleSectionChange(e.target.value as Student["section"])} className={inputCls}>
-                  <option value="englophone">Anglophone</option>
-                  <option value="francophone">Francophone</option>
-                </select>
+              <Field label="School Section">
+                <div className={`${inputCls} text-black/60`}>
+                  {form.section === "francophone" ? "Francophone" : "Anglophone"}
+                </div>
               </Field>
               <Field label="Full Name*">
                 <input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} className={inputCls} required autoFocus={!isEditing} />
@@ -916,10 +990,62 @@ function StudentDialog({
           </section>
         )}
 
-        {!isEditing && step === 3 && (
+        {(isEditing || step === 3) && (
+          <section className="space-y-4">
+            {!isEditing && <h4 className="font-display font-bold">Student photo <span className="text-xs font-normal text-black/45">Optional</span></h4>}
+            <input ref={uploadRef} type="file" accept="image/*" onChange={uploadPhoto} className="hidden" />
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
+                {cameraStream ? (
+                  <video ref={videoRef} autoPlay playsInline muted className="aspect-[4/3] w-full object-cover" />
+                ) : form.photoUrl ? (
+                  <img src={form.photoUrl} alt="Student photo preview" className="aspect-[4/3] w-full object-cover" />
+                ) : (
+                  <div className="grid aspect-[4/3] place-items-center text-center text-black/40">
+                    <div>
+                      <ImagePlus className="mx-auto mb-2 size-8" />
+                      <p className="text-sm font-semibold">No photo selected</p>
+                      <p className="mt-1 text-xs">Capture with webcam or upload an image</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                {cameraStream ? (
+                  <>
+                    <button type="button" onClick={capturePhoto} className="flex items-center justify-center gap-2 rounded-lg bg-brand px-3 py-2.5 text-sm font-semibold text-white hover:bg-brand/90">
+                      <Camera className="size-4" /> Take photo
+                    </button>
+                    <button type="button" onClick={stopCamera} className="flex items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-stone-50">
+                      <X className="size-4" /> Stop camera
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => void startCamera()} className="flex items-center justify-center gap-2 rounded-lg bg-brand px-3 py-2.5 text-sm font-semibold text-white hover:bg-brand/90">
+                    <Camera className="size-4" /> Use webcam
+                  </button>
+                )}
+                <button type="button" onClick={() => uploadRef.current?.click()} className="flex items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-stone-50">
+                  <Upload className="size-4" /> Upload photo
+                </button>
+                {form.photoUrl && (
+                  <button type="button" onClick={() => set("photoUrl", "")} className="flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">
+                    <Trash2 className="size-4" /> Remove photo
+                  </button>
+                )}
+                <p className="text-xs leading-5 text-black/45">Images are resized before saving. Maximum upload size: 10 MB.</p>
+              </div>
+            </div>
+            {cameraError && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{cameraError}</p>}
+            {!isEditing && <p className="text-xs text-black/50">You can skip this step and add a photo later.</p>}
+          </section>
+        )}
+
+        {!isEditing && step === 4 && (
           <section className="space-y-4">
             <h4 className="font-display font-bold">Review student information</h4>
             <div className="grid gap-3 rounded-xl border border-stone-200 p-4 sm:grid-cols-2">
+              <ReviewItem label="Photo" value={form.photoUrl ? "Photo added" : "Not provided"} />
               <ReviewItem label="Student" value={form.fullName} />
               <ReviewItem label="Gender" value={form.gender} />
               <ReviewItem label="Date of birth" value={form.dob || "Not provided"} />
@@ -951,6 +1077,16 @@ function StudentDialog({
               disabled={saving}
             >
               Back
+            </button>
+          )}
+          {!isEditing && step === 3 && (
+            <button
+              type="button"
+              onClick={() => setStep(4)}
+              className="mr-auto px-2 py-2.5 text-sm font-semibold text-black/55 hover:text-black"
+              disabled={saving}
+            >
+              Skip photo
             </button>
           )}
           <button
