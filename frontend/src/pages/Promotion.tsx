@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { GraduationCap, RotateCcw, Download, Filter, Users, User, Award, AlertCircle } from "lucide-react";
+import { CompactPageLoader } from "@/components/CompactPageLoader";
 import { toast } from "sonner";
 import axios from "axios";
 import html2canvas from "html2canvas-pro";
@@ -110,6 +111,7 @@ export function PromotionPage() {
   const [marks, setMarks] = useState<Mark[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [classDataLoading, setClassDataLoading] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
 
   // Filter states
@@ -120,21 +122,11 @@ export function PromotionPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [studentsRes, subjectsRes, classesRes, marksRes, usersRes] = await Promise.all([
-        axios.get(`${API_BASE}/students`),
+      const [subjectsRes, classesRes, usersRes] = await Promise.all([
         axios.get(`${API_BASE}/subjects`),
         axios.get(`${API_BASE}/classes`),
-        axios.get(`${API_BASE}/marks`),
         axios.get(`${API_BASE}/users`),
       ]);
-
-      if (studentsRes.data.success) {
-        const mappedStudents = studentsRes.data.data.map((s: any) => ({
-          ...s,
-          id: s._id || s.id
-        }));
-        setStudents(mappedStudents);
-      }
 
       if (subjectsRes.data.success) {
         const mappedSubjects = subjectsRes.data.data.map((s: any) => ({
@@ -160,13 +152,6 @@ export function PromotionPage() {
         }
       }
 
-      if (marksRes.data.success) {
-        const mappedMarks = marksRes.data.data.map((m: any) => ({
-          ...m,
-          id: m._id || m.id
-        }));
-        setMarks(mappedMarks);
-      }
 
       if (usersRes.data.success) {
         const mappedTeachers = usersRes.data.data.map((t: any) => ({
@@ -214,6 +199,54 @@ export function PromotionPage() {
   const selectedClass = useMemo(() => {
     return classes.find(c => c.id === classId);
   }, [classes, classId]);
+
+  useEffect(() => {
+    if (!classId || !selectedClass) {
+      setStudents([]);
+      setMarks([]);
+      setClassDataLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setClassDataLoading(true);
+    Promise.all([
+      axios.get(`${API_BASE}/students/class/${classId}`),
+      axios.get(`${API_BASE}/marks`, {
+        params: {
+          classId,
+          academicYear: selectedAcademicYear || selectedClass.acedemicYear || "",
+        },
+      }),
+    ]).then(([studentsRes, marksRes]) => {
+      if (cancelled) return;
+      if (studentsRes.data.success) {
+        setStudents(studentsRes.data.data.map((student: any) => ({
+          ...student,
+          id: String(student._id || student.id),
+          classId: String(student.classId),
+        })));
+      }
+      if (marksRes.data.success) {
+        setMarks(marksRes.data.data.map((mark: any) => ({
+          ...mark,
+          id: mark._id || mark.id,
+          studentId: String(mark.studentId),
+          subjectId: String(mark.subjectId),
+          classId: String(mark.classId),
+        })));
+      }
+    }).catch((error: any) => {
+      if (!cancelled) {
+        console.error("Error fetching promotion data for class:", error);
+        toast.error(error.response?.data?.message || "Failed to fetch promotion data for this class");
+      }
+    }).finally(() => {
+      if (!cancelled) setClassDataLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [classId, selectedAcademicYear, selectedClass?.acedemicYear]);
 
   const classSubjects = useMemo(() => {
     return subjects.filter(s => s.classIds.includes(classId));
@@ -524,14 +557,7 @@ export function PromotionPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-black/60">Loading data...</p>
-        </div>
-      </div>
-    );
+    return <CompactPageLoader label="Loading promotion data..." />;
   }
 
   return (

@@ -6,8 +6,10 @@ import {
   Sun, Moon, Settings, Bell, Award, DollarSign, Download, Printer,
   ChevronDown, ChevronUp, Plus, Trash2, Edit, Save, Filter,
   CheckCircle, XCircle, Clock as ClockIcon, UserCheck, UserX,
-  FileText, CreditCard, Receipt, TrendingUp, TrendingDown, RefreshCw
+  FileText, CreditCard, Receipt, TrendingUp, TrendingDown, RefreshCw,
+  Loader2
 } from "lucide-react";
+import { CompactPageLoader } from "@/components/CompactPageLoader";
 import { toast } from "sonner";
 import axios from "axios";
 
@@ -411,14 +413,7 @@ export function TeacherAttendancePage() {
   // ============================================
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-3 text-sm text-black/60 font-medium">Loading attendance...</p>
-        </div>
-      </div>
-    );
+    return <CompactPageLoader label="Loading attendance..." />;
   }
 
   return (
@@ -1169,14 +1164,7 @@ export function TeacherSalaryPage() {
   // ============================================
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-3 text-sm text-black/60 font-medium">Loading salaries...</p>
-        </div>
-      </div>
-    );
+    return <CompactPageLoader label="Loading salaries..." />;
   }
 
   return (

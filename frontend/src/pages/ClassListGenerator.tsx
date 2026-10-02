@@ -114,25 +114,16 @@ export function ClassListGeneratorPage() {
     const [selectedClassId, setSelectedClassId] = useState("");
     const [selectedTerm, setSelectedTerm] = useState<(typeof TERMS)[number]["label"]>("First Term");
     const [loading, setLoading] = useState(true);
+    const [classDataLoading, setClassDataLoading] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [studentsRes, classesRes, subjectsRes, marksRes] = await Promise.all([
-                    axios.get(`${API_BASE}/students`),
+                const [classesRes, subjectsRes] = await Promise.all([
                     axios.get(`${API_BASE}/classes`),
                     axios.get(`${API_BASE}/subjects`),
-                    axios.get(`${API_BASE}/marks`),
                 ]);
-
-                if (studentsRes.data.success) {
-                    const mappedStudents = studentsRes.data.data.map((student: any) => ({
-                        ...student,
-                        id: student._id || student.id,
-                    }));
-                    setStudents(mappedStudents);
-                }
 
                 if (classesRes.data.success) {
                     const mappedClasses = classesRes.data.data.map((schoolClass: any) => ({
@@ -156,16 +147,6 @@ export function ClassListGeneratorPage() {
                     })));
                 }
 
-                if (marksRes.data.success) {
-                    setMarks(marksRes.data.data.map((mark: any) => ({
-                        ...mark,
-                        studentId: String(mark.studentId),
-                        subjectId: String(mark.subjectId),
-                        classId: String(mark.classId),
-                        academicyear: mark.academicyear || mark.academicYear || "",
-                        score: Number(mark.score),
-                    })));
-                }
             } catch (error: any) {
                 console.error("Unable to load class list data", error);
                 toast.error(error.response?.data?.message || "Failed to load class list data");
@@ -180,6 +161,55 @@ export function ClassListGeneratorPage() {
         () => classes.find((schoolClass) => schoolClass.id === selectedClassId) ?? null,
         [classes, selectedClassId],
     );
+
+    useEffect(() => {
+        if (!selectedClassId || !selectedClass) {
+            setStudents([]);
+            setMarks([]);
+            setClassDataLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        setClassDataLoading(true);
+        Promise.all([
+            axios.get(`${API_BASE}/students/class/${selectedClassId}`),
+            axios.get(`${API_BASE}/marks`, {
+                params: {
+                    classId: selectedClassId,
+                    academicYear: selectedClass.acedemicYear,
+                },
+            }),
+        ]).then(([studentsRes, marksRes]) => {
+            if (cancelled) return;
+            if (studentsRes.data.success) {
+                setStudents(studentsRes.data.data.map((student: any) => ({
+                    ...student,
+                    id: String(student._id || student.id),
+                    classId: String(student.classId),
+                })));
+            }
+            if (marksRes.data.success) {
+                setMarks(marksRes.data.data.map((mark: any) => ({
+                    ...mark,
+                    studentId: String(mark.studentId),
+                    subjectId: String(mark.subjectId),
+                    classId: String(mark.classId),
+                    academicyear: mark.academicyear || mark.academicYear || "",
+                    score: Number(mark.score),
+                })));
+            }
+        }).catch((error: any) => {
+            if (!cancelled) {
+                console.error("Unable to load selected class marksheet", error);
+                toast.error(error.response?.data?.message || "Failed to load this class marksheet");
+            }
+        }).finally(() => {
+            if (!cancelled) setClassDataLoading(false);
+        });
+
+        return () => { cancelled = true; };
+    }, [selectedClassId, selectedClass?.acedemicYear]);
 
     const classStudents = useMemo(
         () => students
@@ -477,7 +507,7 @@ export function ClassListGeneratorPage() {
                 <div className="flex flex-wrap gap-2">
                     <button
                         onClick={exportExcel}
-                        disabled={loading || !selectedClass || classStudents.length === 0 || classSubjects.length === 0}
+                        disabled={loading || classDataLoading || !selectedClass || classStudents.length === 0 || classSubjects.length === 0}
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#a6e3cf] px-4 py-2.5 text-sm font-semibold text-[#123b35] transition hover:bg-[#b8eddd] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <FileSpreadsheet className="size-4" />
@@ -485,7 +515,7 @@ export function ClassListGeneratorPage() {
                     </button>
                     <button
                         onClick={exportCsv}
-                        disabled={loading || !selectedClass || classStudents.length === 0 || classSubjects.length === 0}
+                        disabled={loading || classDataLoading || !selectedClass || classStudents.length === 0 || classSubjects.length === 0}
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#121212] transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <Download className="size-4" />
@@ -564,7 +594,9 @@ export function ClassListGeneratorPage() {
                 </div>
 
                 {loading ? (
-                    <div className="p-8 text-sm text-stone-500">Loading marksheet data...</div>
+                    <div className="p-8 text-sm text-stone-500">Loading class options...</div>
+                ) : classDataLoading ? (
+                    <div className="p-8 text-sm text-stone-500">Loading students and marks for this class...</div>
                 ) : !selectedClass ? (
                     <div className="p-8 text-sm text-stone-500">No class selected.</div>
                 ) : classStudents.length === 0 ? (

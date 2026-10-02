@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, BookOpen, Search, X } from "lucide-react";
+import { CompactPageLoader } from "@/components/CompactPageLoader";
 import { toast } from "sonner";
 import axios from "axios";
 
@@ -10,6 +11,7 @@ interface Subject {
   id: string;
   name: string;
   code: string;
+  section: "englophone" | "francophone";
   coefficient: number;
   cycle: string;
   periodsPerWeek: number;
@@ -23,6 +25,7 @@ interface SchoolClass {
   className: string;
   department: string;
   cycle: string;
+  schoolSection: "englophone" | "francophone";
   acedemicYear: string;
   classMasterId: string;
   ratePerPeriod: number;
@@ -148,6 +151,7 @@ export function ClassesPage() {
           id: s._id,
           name: s.name,
           code: s.code,
+          section: s.section || "englophone",
           coefficient: s.coefficient,
           cycle: s.cycle,
           periodsPerWeek: s.periodsPerWeek ?? 4,
@@ -164,6 +168,7 @@ export function ClassesPage() {
           className: c.className,
           department: c.department,
           cycle: c.cycle,
+          schoolSection: c.schoolSection || c.section || "englophone",
           acedemicYear: c.acedemicYear,
           classMasterId: c.classMasterId || "",
           ratePerPeriod: c.ratePerPeriod ?? (c.cycle === "1st Cycle" ? 500 : 700),
@@ -236,6 +241,7 @@ export function ClassesPage() {
       const subjectData = {
         name: subject.name.trim(),
         code: subject.code.trim().toUpperCase(),
+        section: subject.section || "englophone",
         coefficient: subject.coefficient,
         cycle: subject.cycle,
         periodsPerWeek: Math.max(1, Math.min(20, Number(subject.periodsPerWeek) || 4)),
@@ -323,6 +329,7 @@ export function ClassesPage() {
         className: schoolClass.className,
         department: schoolClass.department,
         cycle: schoolClass.cycle,
+        schoolSection: schoolClass.schoolSection || "englophone",
         acedemicYear: schoolClass.acedemicYear,
         classMasterId: schoolClass.classMasterId,
         ratePerPeriod: Number(schoolClass.ratePerPeriod) || 0,
@@ -384,14 +391,7 @@ export function ClassesPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-black/60">Loading data...</p>
-        </div>
-      </div>
-    );
+    return <CompactPageLoader label="Loading classes and subjects..." />;
   }
 
   return (
@@ -713,6 +713,7 @@ export function ClassesPage() {
             id: "s_" + Math.random().toString(36).slice(2, 9),
             name: "",
             code: "",
+            section: "englophone",
             coefficient: 1,
             cycle: "1st Cycle",
             periodsPerWeek: 4,
@@ -735,6 +736,7 @@ export function ClassesPage() {
             className: "",
             department: "Science",
             cycle: "1st Cycle",
+            schoolSection: "englophone",
             acedemicYear: "2024-2025",
             classMasterId: "",
             ratePerPeriod: 500,
@@ -835,6 +837,16 @@ function SubjectDialog({
               required
               placeholder="e.g., MATH101"
             />
+          </Field>
+          <Field label="Section*">
+            <select
+              value={form.section || "englophone"}
+              onChange={(e) => set("section", e.target.value as "englophone" | "francophone")}
+              className={inputCls}
+            >
+              <option value="englophone">Anglophone</option>
+              <option value="francophone">Francophone</option>
+            </select>
           </Field>
           <Field label="Coefficient*">
             <input
@@ -1110,6 +1122,18 @@ function ClassDialog({
               {academicYears.map((year) => (
                 <option key={year} value={year}>{year}</option>
               ))}
+            </select>
+          </Field>
+
+          <Field label="School Section*">
+            <select
+              value={form.schoolSection || "englophone"}
+              onChange={(e) => set("schoolSection", e.target.value as "englophone" | "francophone")}
+              className={inputCls}
+              required
+            >
+              <option value="englophone">Anglophone</option>
+              <option value="francophone">Francophone</option>
             </select>
           </Field>
 

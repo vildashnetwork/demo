@@ -363,10 +363,22 @@ router.post("/students", async (req, res) => {
     try {
         const studentData = req.body;
 
+        if (!studentData.section) {
+            studentData.section = 'englophone';
+        }
+
         const schoolClass = await SchoolClass.findById(studentData.classId);
         if (!schoolClass) {
             return res.status(400).json({ success: false, message: "Select a valid class before enrolling the student" });
         }
+
+        if (!studentData.section) {
+            studentData.section = schoolClass.schoolSection || 'englophone';
+        }
+        if (schoolClass.schoolSection && studentData.section !== schoolClass.schoolSection) {
+            return res.status(400).json({ success: false, message: "Student section must match the selected class section" });
+        }
+
         if (schoolClass.className !== "Graduated" && Number(schoolClass.tuitionFee) <= 0) {
             return res.status(400).json({ success: false, message: "Configure tuition for this class before enrolling students" });
         }
@@ -482,6 +494,12 @@ router.post("/students/bulk", async (req, res) => {
             const schoolClass = await SchoolClass.findById(payload.classId);
             if (!schoolClass) {
                 return res.status(400).json({ success: false, message: `Invalid class for ${payload.fullName}` });
+            }
+            if (!payload.section) {
+                payload.section = schoolClass.schoolSection || 'englophone';
+            }
+            if (schoolClass.schoolSection && payload.section !== schoolClass.schoolSection) {
+                return res.status(400).json({ success: false, message: `Student section does not match class section for ${payload.fullName}` });
             }
             if (schoolClass.className !== "Graduated" && Number(schoolClass.tuitionFee) <= 0) {
                 return res.status(400).json({ success: false, message: `Configure tuition for ${schoolClass.className} before bulk enrollment` });
@@ -765,6 +783,12 @@ router.put("/students/:id", async (req, res) => {
             if (!schoolClass) {
                 return res.status(400).json({ success: false, message: "Select a valid class" });
             }
+            if (!payload.section) {
+                payload.section = schoolClass.schoolSection || 'englophone';
+            }
+            if (schoolClass.schoolSection && payload.section !== schoolClass.schoolSection) {
+                return res.status(400).json({ success: false, message: "Student section must match the selected class section" });
+            }
             if (schoolClass.className !== "Graduated" && Number(schoolClass.tuitionFee) <= 0) {
                 return res.status(400).json({ success: false, message: "Configure tuition for this class before assigning students" });
             }
@@ -855,6 +879,16 @@ router.patch("/students/:id", async (req, res) => {
         if (!payload.matricule && !existingStudent.matricule) {
             payload.enrollmentYear = payload.enrollmentYear || enrollmentYearOf(existingStudent);
             payload.matricule = await generateMatricule(payload);
+        }
+
+        if (payload.classId) {
+            const schoolClass = await SchoolClass.findById(payload.classId);
+            if (schoolClass) {
+                if (!payload.section) payload.section = schoolClass.schoolSection || 'englophone';
+                if (schoolClass.schoolSection && payload.section !== schoolClass.schoolSection) {
+                    return res.status(400).json({ success: false, message: "Student section must match the selected class section" });
+                }
+            }
         }
 
         const updatedStudent = await Student.findByIdAndUpdate(

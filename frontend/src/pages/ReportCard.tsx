@@ -1,3 +1,5 @@
+import { CompactPageLoader } from "@/components/CompactPageLoader";
+
 // import { useMemo, useState } from "react";
 // import { Link, useParams, useSearchParams } from "react-router-dom";
 // import { getStore } from "@/lib/mock-data";
@@ -359,28 +361,61 @@ export function ReportCard() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [studentsRes, subjectsRes, classesRes, marksRes] = await Promise.all([
-        axios.get(`${API_BASE}/students`),
+      const [studentRes, subjectsRes, classesRes] = await Promise.all([
+        axios.get(`${API_BASE}/students/${studentId}`),
         axios.get(`${API_BASE}/subjects`),
         axios.get(`${API_BASE}/classes`),
-        axios.get(`${API_BASE}/marks`)
       ]);
 
-      if (studentsRes.data.success) {
-        const mapped = studentsRes.data.data.map((s: any) => ({ ...s, id: s._id || s.id }));
-        setStudents(mapped);
-      }
+      const sourceStudent = studentRes.data.success ? studentRes.data.data : null;
+      if (!sourceStudent) throw new Error("Student not found");
+      const mappedStudent = { ...sourceStudent, id: String(sourceStudent._id || sourceStudent.id) };
       if (subjectsRes.data.success) {
         const mapped = subjectsRes.data.data.map((s: any) => ({ ...s, id: s._id || s.id }));
         setSubjects(mapped);
       }
+      let mappedClasses: any[] = [];
       if (classesRes.data.success) {
-        const mapped = classesRes.data.data.map((c: any) => ({ ...c, id: c._id || c.id, className: c.className || c.name }));
-        setClasses(mapped);
+        mappedClasses = classesRes.data.data.map((c: any) => ({
+          ...c,
+          id: String(c._id || c.id),
+          className: c.className || c.name,
+          acedemicYear: c.acedemicYear || c.academicYear || "",
+        }));
+        setClasses(mappedClasses);
       }
-      if (marksRes.data.success) {
-        const mapped = marksRes.data.data.map((m: any) => ({ ...m, id: m._id || m.id }));
-        setMarks(mapped);
+
+      const studentClassId = String(mappedStudent.classId || "");
+      const studentClass = mappedClasses.find((schoolClass) => schoolClass.id === studentClassId);
+      if (!studentClassId) throw new Error("Student is not assigned to a class");
+
+      const [classStudentsRes, classMarksRes] = await Promise.all([
+        axios.get(`${API_BASE}/students/class/${studentClassId}`),
+        axios.get(`${API_BASE}/marks`, {
+          params: {
+            classId: studentClassId,
+            ...(studentClass?.acedemicYear ? { academicYear: studentClass.acedemicYear } : {}),
+          },
+        }),
+      ]);
+
+      if (classStudentsRes.data.success) {
+        setStudents(classStudentsRes.data.data.map((student: any) => ({
+          ...student,
+          id: String(student._id || student.id),
+          classId: String(student.classId),
+        })));
+      } else {
+        setStudents([mappedStudent]);
+      }
+      if (classMarksRes.data.success) {
+        setMarks(classMarksRes.data.data.map((mark: any) => ({
+          ...mark,
+          id: mark._id || mark.id,
+          studentId: String(mark.studentId),
+          subjectId: String(mark.subjectId),
+          classId: String(mark.classId),
+        })));
       }
     } catch (error: any) {
       console.error("Error fetching data:", error);
@@ -614,14 +649,7 @@ export function ReportCard() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-black/60">Loading report card...</p>
-        </div>
-      </div>
-    );
+    return <CompactPageLoader label="Loading report card..." />;
   }
 
   if (!data) {

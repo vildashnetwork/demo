@@ -125,9 +125,7 @@
 
 
 
-import { useEffect, useMemo, useState } from "react";
-import { getStore } from "@/lib/mock-data";
-import { rankWithTies } from "@/lib/grading";
+import { useEffect, useState } from "react";
 import { Users, GraduationCap, Wallet, TrendingUp, Award, AlertCircle, Loader2 } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, Legend } from "recharts";
 import axios from "axios";
@@ -136,137 +134,56 @@ import { currentUser } from "@/lib/auth";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.com/api";
 
-interface Student {
-  id: string;
-  fullName: string;
-  gender: string;
-  dob: string;
-  classId: string;
-  department: string;
-  parentName: string;
-  parentPhone: string;
-  address: string;
-  photoUrl?: string;
-  registrationDate: string;
-  feesPaid: number;
-  feesDue: number;
-  admissionNumber?: string;
+interface DashboardSummary {
+  totalStudents: number;
+  totalTeachers: number;
+  totalClasses: number;
+  totalFeesPaid: number;
+  totalFeesDue: number;
+  passRate: number;
+  classAvgs: { name: string; avg: number }[];
+  bestClass: { name: string; avg: number } | null;
+  subjectAvgs: { name: string; avg: number }[];
+  bestSubject: { name: string; avg: number } | null;
+  top: { id: string; avg: number; rank: number; student: { fullName: string; department: string } }[];
+  trend: { sequence: string; average: number | null }[];
+  aiInsight: string;
 }
 
-interface Subject {
-  id: string;
-  name: string;
-  code: string;
-  coefficient: number;
-  cycle: string;
-  classIds: string[];
-  teacherIds: string[];
-}
-
-interface Class {
-  id: string;
-  className: string;
-  department: string;
-  cycle: string;
-  acedemicYear: string;
-  classMasterId: string;
-}
-
-interface Mark {
-  id?: string;
-  studentId: string;
-  subjectId: string;
-  classId: string;
-  sequence: string;
-  academicyear: string;
-  score: number;
-  recordedBy: string;
-}
-
-interface Teacher {
-  id: string;
-  name: string;
-  username: string;
-  phone: string;
-  role: string;
-  qualification: string;
-  subjectIds: string[];
-  classIds: string[];
-  acedemicYear: string;
-}
+const EMPTY_DASHBOARD: DashboardSummary = {
+  totalStudents: 0,
+  totalTeachers: 0,
+  totalClasses: 0,
+  totalFeesPaid: 0,
+  totalFeesDue: 0,
+  passRate: 0,
+  classAvgs: [],
+  bestClass: null,
+  subjectAvgs: [],
+  bestSubject: null,
+  top: [],
+  trend: [],
+  aiInsight: "Monitor student performance regularly for the best results.",
+};
 
 export function Dashboard() {
   const user = currentUser();
   const isTeacher = user?.role === "teacher";
 
-  const [students, setStudents] = useState<Student[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [marks, setMarks] = useState<Mark[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [data, setData] = useState<DashboardSummary>(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [performanceView, setPerformanceView] = useState<"classes" | "subjects">("classes");
 
   const fetchData = async () => {
     try {
-      setLoading(true);
-      const [studentsRes, subjectsRes, classesRes, marksRes, usersRes] = await Promise.all([
-        axios.get(`${API_BASE}/students`),
-        axios.get(`${API_BASE}/subjects`),
-        axios.get(`${API_BASE}/classes`),
-        axios.get(`${API_BASE}/marks`),
-        axios.get(`${API_BASE}/users`),
-      ]);
-
-      if (studentsRes.data.success) {
-        const mappedStudents = studentsRes.data.data.map((s: any) => ({
-          ...s,
-          id: s._id || s.id
-        }));
-        setStudents(mappedStudents);
-      }
-
-      if (subjectsRes.data.success) {
-        const mappedSubjects = subjectsRes.data.data.map((s: any) => ({
-          ...s,
-          id: s._id || s.id
-        }));
-        setSubjects(mappedSubjects);
-      }
-
-      if (classesRes.data.success) {
-        const mappedClasses = classesRes.data.data.map((c: any) => ({
-          ...c,
-          id: c._id || c.id,
-          className: c.className || c.name
-        }));
-        setClasses(mappedClasses);
-      }
-
-      if (marksRes.data.success) {
-        const mappedMarks = marksRes.data.data.map((m: any) => ({
-          ...m,
-          id: m._id || m.id
-        }));
-        setMarks(mappedMarks);
-      }
-
-      if (usersRes.data.success) {
-        const mappedTeachers = usersRes.data.data.map((t: any) => ({
-          id: t._id,
-          name: t.name,
-          username: t.username,
-          phone: t.phone,
-          role: t.role,
-          qualification: t.qualification || "",
-          subjectIds: t.subjectIds || [],
-          classIds: t.classIds || [],
-          acedemicYear: t.acedemicYear || "",
-        }));
-        setTeachers(mappedTeachers);
-      }
+      setLoadError("");
+      const response = await axios.get(`${API_BASE}/marks/dashboard-summary`);
+      if (!response.data.success) throw new Error(response.data.message || "Dashboard summary unavailable");
+      setData({ ...EMPTY_DASHBOARD, ...response.data.data });
     } catch (error: any) {
       console.error("Error fetching data:", error);
+      setLoadError(error.response?.data?.message || error.message || "Dashboard data could not be loaded.");
       toast.error(error.response?.data?.message || "Failed to fetch data");
     } finally {
       setLoading(false);
@@ -277,155 +194,25 @@ export function Dashboard() {
     fetchData();
   }, []);
 
-  const data = useMemo(() => {
-    if (loading || students.length === 0) {
-      return {
-        totalStudents: 0,
-        totalTeachers: 0,
-        totalClasses: 0,
-        totalFeesPaid: 0,
-        totalFeesDue: 0,
-        passRate: 0,
-        classAvgs: [],
-        bestClass: null,
-        subjectAvgs: [],
-        bestSubject: null,
-        top: [],
-        trend: [],
-      };
-    }
-
-    // Calculate per student averages
-    const perStudent: Record<string, { sum: number; cw: number }> = {};
-    for (const m of marks) {
-      const sub = subjects.find((x) => x.id === m.subjectId);
-      if (!sub) continue;
-      const cur = perStudent[m.studentId] ?? { sum: 0, cw: 0 };
-      cur.sum += m.score * sub.coefficient;
-      cur.cw += sub.coefficient;
-      perStudent[m.studentId] = cur;
-    }
-
-    // Calculate student averages
-    const studentAvgs = Object.entries(perStudent).map(([id, v]) => ({
-      id,
-      avg: v.cw ? v.sum / v.cw : 0
-    }));
-
-    // Calculate ranks
-    const ranks = rankWithTies(studentAvgs);
-
-    // Pass rate
-    const passRate = studentAvgs.length
-      ? (studentAvgs.filter((v) => v.avg >= 10).length / studentAvgs.length) * 100
-      : 0;
-
-    // Fees
-    const totalFeesPaid = students.reduce((a, b) => a + b.feesPaid, 0);
-    const totalFeesDue = students.reduce((a, b) => a + b.feesDue, 0);
-
-    // Class averages
-    const classAvgs = classes.map((c) => {
-      const studs = students.filter((st) => st.classId === c.id);
-      const avgs = studs.map((st) => studentAvgs.find((sa) => sa.id === st.id)?.avg ?? 0);
-      const avg = avgs.length ? avgs.reduce((x, y) => x + y, 0) / avgs.length : 0;
-      return {
-        name: `${c.className.replace("Form ", "F")} ${c.department || ""}`.trim(),
-        avg: Math.round(avg * 10) / 10
-      };
-    });
-
-    const subjectAvgs = subjects.map((subject) => {
-      const subjectMarks = marks.filter((mark) => mark.subjectId === subject.id);
-      const avg = subjectMarks.length
-        ? subjectMarks.reduce((total, mark) => total + mark.score, 0) / subjectMarks.length
-        : 0;
-      return {
-        name: `${subject.name} (${subject.code})`,
-        avg: Math.round(avg * 10) / 10,
-        markCount: subjectMarks.length,
-      };
-    }).filter((subject) => subject.markCount > 0);
-
-    // Best class
-    const bestClass = [...classAvgs].sort((a, b) => b.avg - a.avg)[0] || null;
-    const bestSubject = [...subjectAvgs].sort((a, b) => b.avg - a.avg)[0] || null;
-
-    // Top students
-    const top = studentAvgs
-      .map((sa) => ({
-        ...sa,
-        rank: ranks[sa.id],
-        student: students.find((st) => st.id === sa.id)!
-      }))
-      .filter((t) => t.student)
-      .sort((a, b) => a.rank - b.rank)
-      .slice(0, 7);
-
-    // Sequence trend
-    const sequences = ["1st seq", "2nd seq", "3rd seq", "4th seq", "5th seq", "6th seq"];
-    const trend = sequences.map((seq, index) => {
-      const m = marks.filter((mm) => mm.sequence === seq);
-      const avg = m.length ? m.reduce((a, b) => a + b.score, 0) / m.length : 0;
-      return {
-        sequence: `Seq ${index + 1}`,
-        average: avg ? Math.round(avg * 10) / 10 : null,
-      };
-    });
-
-    // AI Insight based on data
-    let aiInsight = "";
-    if (classAvgs.length > 0) {
-      const lowestClass = [...classAvgs].sort((a, b) => a.avg - b.avg)[0];
-      if (lowestClass && lowestClass.avg < 10) {
-        aiInsight = `${lowestClass.name} shows a low average of ${lowestClass.avg}. Consider remedial classes for this class.`;
-      } else if (trend.length > 1 && trend[trend.length - 1]?.average !== null && trend[trend.length - 2]?.average !== null) {
-        const last = trend[trend.length - 1].average!;
-        const prev = trend[trend.length - 2].average!;
-        if (last < prev) {
-          aiInsight = `There's a ${(prev - last).toFixed(1)} point drop in the latest sequence. Schedule review sessions.`;
-        } else {
-          aiInsight = `Overall performance is trending ${last > prev ? 'upward' : 'stable'}. Keep up the good work!`;
-        }
-      } else {
-        aiInsight = "Monitor student performance regularly for the best results.";
-      }
-    }
-
-    return {
-      totalStudents: students.length,
-      totalTeachers: teachers.filter(t => t.role === "teacher").length,
-      totalClasses: classes.length,
-      totalFeesPaid,
-      totalFeesDue,
-      passRate,
-      classAvgs,
-      bestClass,
-      subjectAvgs,
-      bestSubject,
-      top,
-      trend,
-      aiInsight,
-    };
-  }, [students, subjects, classes, marks, teachers, loading]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-brand animate-spin mx-auto" />
-          <p className="mt-4 text-black/60">Loading dashboard data...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-extrabold tracking-tight">Welcome back</h1>
         <p className="text-sm text-black/60 mt-1">Here's what's happening across BCHS DOUALA today.</p>
       </div>
+
+      {loading && (
+        <div role="status" className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
+          <Loader2 className="size-4 animate-spin" />
+          Updating dashboard summary…
+        </div>
+      )}
+      {loadError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800">
+          <span>{loadError}</span>
+          <button onClick={() => void fetchData()} className="font-bold underline underline-offset-2">Retry</button>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

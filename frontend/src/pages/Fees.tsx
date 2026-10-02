@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { Wallet, AlertTriangle, MessageSquare, Download, Printer, Filter, Search, FileText, Plus, X } from "lucide-react";
+import { CompactPageLoader } from "@/components/CompactPageLoader";
 import { toast } from "sonner";
 import axios from "axios";
 import jsPDF from "jspdf";
@@ -81,22 +82,31 @@ export function FeesPage() {
   const [savingPayment, setSavingPayment] = useState(false);
 
   // Fetch data
-  const fetchData = async () => {
+  const fetchStudents = async (selectedClassId: string) => {
     try {
-      setLoading(true);
-      const [studentsRes, classesRes] = await Promise.all([
-        axios.get(`${API_BASE}/students`),
-        axios.get(`${API_BASE}/classes`)
-      ]);
+      const endpoint = selectedClassId === "all"
+        ? `${API_BASE}/students`
+        : `${API_BASE}/students/class/${selectedClassId}`;
 
+      const studentsRes = await axios.get(endpoint);
       if (studentsRes.data.success) {
         const mappedStudents = studentsRes.data.data.map((student: any) => ({
           ...student,
           id: student._id || student.id
         }));
         setStudents(mappedStudents);
-        console.log("📚 Students loaded:", mappedStudents.length);
       }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to fetch students");
+      console.error("Error fetching students:", error);
+    }
+  };
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const classesRes = await axios.get(`${API_BASE}/classes`);
+
       if (classesRes.data.success) {
         const mappedClasses = classesRes.data.data.map((cls: any) => ({
           ...cls,
@@ -108,7 +118,12 @@ export function FeesPage() {
           registrationFeeAmount: Number(cls.registrationFeeAmount) || 0,
         }));
         setClasses(mappedClasses);
-        console.log("📚 Classes loaded:", mappedClasses.length);
+
+        const nextClassId = classFilter === "all" && mappedClasses[0] ? mappedClasses[0].id : classFilter;
+        if (nextClassId !== classFilter) {
+          setClassFilter(nextClassId);
+        }
+        await fetchStudents(nextClassId);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to fetch data");
@@ -119,8 +134,17 @@ export function FeesPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!classes.length) return;
+    if (classFilter === "all") {
+      void fetchStudents("all");
+      return;
+    }
+    void fetchStudents(classFilter);
+  }, [classFilter, classes.length]);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -426,14 +450,7 @@ export function FeesPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-black/60">Loading fees data...</p>
-        </div>
-      </div>
-    );
+    return <CompactPageLoader label="Loading fees data..." />;
   }
 
   return (

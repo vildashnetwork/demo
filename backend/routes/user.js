@@ -876,6 +876,10 @@ router.post("/users", async (req, res) => {
   try {
     const userData = req.body;
 
+    if (!userData.section) {
+      userData.section = 'englophone';
+    }
+
     const existingUser = await User.findOne({
       $or: [
         { username: userData.username },
@@ -929,6 +933,10 @@ router.put("/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const userData = req.body;
+
+    if (!userData.section) {
+      userData.section = 'englophone';
+    }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -1001,6 +1009,10 @@ router.patch("/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const userData = req.body;
+
+    if (!userData.section) {
+      userData.section = 'englophone';
+    }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({

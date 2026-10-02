@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Mail, Phone, BookOpen, Plus, Pencil, Trash2, Search, X } from "lucide-react";
+import { CompactPageLoader } from "@/components/CompactPageLoader";
 import { toast } from "sonner";
 import axios from "axios";
 
@@ -22,6 +23,7 @@ interface Teacher {
   qualification: string;
   phone: string;
   email: string;
+  section: "englophone" | "francophone";
   subjectIds: string[];
   classIds: string[];
   role?: string;
@@ -33,6 +35,7 @@ interface Subject {
   id: string;
   name: string;
   code: string;
+  section: "englophone" | "francophone";
 }
 
 interface Class {
@@ -40,6 +43,7 @@ interface Class {
   className: string;
   department?: string;
   cycle?: string;
+  schoolSection: "englophone" | "francophone";
   acedemicYear?: string;
 }
 
@@ -81,6 +85,7 @@ export function TeachersPage() {
           qualification: user.qualification || "",
           phone: user.phone,
           email: user.username,
+          section: user.section || "englophone",
           subjectIds: user.subjectIds || [],
           classIds: user.classIds || [],
           role: user.role,
@@ -104,7 +109,8 @@ export function TeachersPage() {
         const mappedSubjects = response.data.data.map((subj: any) => ({
           id: subj._id || subj.id,
           name: subj.name,
-          code: subj.code
+          code: subj.code,
+          section: subj.section || "englophone"
         }));
         setSubjects(mappedSubjects);
         console.log("📚 Subjects loaded:", mappedSubjects);
@@ -131,6 +137,7 @@ export function TeachersPage() {
             className: cls.className || cls.name || "Unknown",
             department: cls.department || cls.section || "",
             cycle: cls.cycle || "",
+            schoolSection: cls.schoolSection || cls.section || "englophone",
             acedemicYear: cls.acedemicYear || cls.academicYear || ""
           };
         });
@@ -174,6 +181,7 @@ export function TeachersPage() {
         username: teacher.email.trim(),
         phone: teacher.phone.trim(),
         role: teacher.role || "teacher",
+        section: teacher.section || "englophone",
         qualification: teacher.qualification || "",
         subjectIds: teacher.subjectIds || [],
         classIds: teacher.classIds || [],
@@ -239,14 +247,7 @@ export function TeachersPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-black/60">Loading teachers...</p>
-        </div>
-      </div>
-    );
+    return <CompactPageLoader label="Loading teachers..." />;
   }
 
   return (
@@ -372,6 +373,7 @@ export function TeachersPage() {
             qualification: "",
             phone: "",
             email: "",
+            section: "englophone",
             subjectIds: [],
             classIds: [],
             role: "teacher",
@@ -522,6 +524,12 @@ function TeacherDialog({
           <section className="space-y-4">
             {!isEditing && <h4 className="font-display font-bold">Teacher profile</h4>}
             <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Section*">
+                <select value={form.section || "englophone"} onChange={(e) => set("section", e.target.value as "englophone" | "francophone")} className={inputCls}>
+                  <option value="englophone">Anglophone</option>
+                  <option value="francophone">Francophone</option>
+                </select>
+              </Field>
               <Field label="Full Name*">
                 <input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} className={inputCls} required autoFocus={!isEditing} />
               </Field>

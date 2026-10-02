@@ -23,6 +23,12 @@ const studentAttendanceSchema = new mongoose.Schema({
         required: [true, "classId is required"],
         trim: true
     },
+    section: {
+        type: String,
+        enum: ["englophone", "francophone"],
+        default: "englophone",
+        trim: true
+    },
     date: {
         type: Date,
         required: [true, "date is required"]
@@ -71,6 +77,7 @@ studentAttendanceSchema.index({ studentId: 1, date: 1, period: 1 }, { unique: tr
 studentAttendanceSchema.index({ classId: 1, date: 1 });
 studentAttendanceSchema.index({ academicYear: 1, term: 1 });
 studentAttendanceSchema.index({ studentId: 1, academicYear: 1, term: 1 });
+studentAttendanceSchema.index({ section: 1 });
 
 // ==================== HELPERS ====================
 

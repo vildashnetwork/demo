@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Shield, Database, Plus, Pencil, Trash2, Search, X, Users, UserCog, Loader2, Save, CalendarClock, DollarSign } from "lucide-react";
+import { CompactPageLoader } from "@/components/CompactPageLoader";
 import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.com/api";
@@ -313,14 +314,7 @@ export function SettingsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-black/60">Loading users...</p>
-        </div>
-      </div>
-    );
+    return <CompactPageLoader label="Loading users..." />;
   }
 
   return (

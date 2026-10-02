@@ -36,6 +36,13 @@ const studentschema = new mongoose.Schema({
         type: String,
         required: true
     },
+    section: {
+        type: String,
+        enum: ["englophone", "francophone"],
+        default: "englophone",
+        required: true,
+        trim: true
+    },
     department: {
         type: String,
         required: true
@@ -127,6 +134,7 @@ studentschema.virtual("admissionNumber")
 // Fast matricule lookups (search box, report cards, barcode scanning)
 studentschema.index({ matricule: 1 });
 studentschema.index({ enrollmentYear: 1 });
+studentschema.index({ section: 1 });
 
 // Generate the matricule automatically for every new student, and refuse a
 // matricule that is already used by another student.

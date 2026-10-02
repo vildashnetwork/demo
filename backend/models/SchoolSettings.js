@@ -76,6 +76,12 @@ const schoolSettingsSchema = new mongoose.Schema({
         `${props.value} is not a valid academic year format. Use YYYY-YYYY`,
     },
   },
+  section: {
+    type: String,
+    enum: ["englophone", "francophone"],
+    default: "englophone",
+    trim: true,
+  },
   periodsPerDay: {
     type: Number,
     min: [1, "Must have at least 1 period"],

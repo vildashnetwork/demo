@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { Search, Plus, Trash2, Pencil, Filter, Download, FileText, Printer } from "lucide-react";
+import { CompactPageLoader } from "@/components/CompactPageLoader";
 import { toast } from "sonner";
 import axios from "axios";
 import jsPDF from "jspdf";
@@ -12,6 +13,7 @@ interface Student {
   id: string;
   fullName: string;
   gender: string;
+  section: "englophone" | "francophone";
   dob: string;
   classId: string;
   department: string;
@@ -36,6 +38,7 @@ interface Class {
   className: string;
   department: string;
   cycle: string;
+  schoolSection: "englophone" | "francophone";
   acedemicYear: string;
   classMasterId: string;
   tuitionFee: number;
@@ -68,34 +71,49 @@ export function StudentsPage() {
   const role: string = "admin";
   const canEdit = role === "super_admin" || role === "admin";
 
-  // Fetch data
+  const fetchStudents = async (selectedClassId: string) => {
+    try {
+      const endpoint = selectedClassId === "all"
+        ? `${API_BASE}/students`
+        : `${API_BASE}/students/class/${selectedClassId}`;
+
+      const studentsRes = await axios.get(endpoint);
+      if (studentsRes.data.success) {
+        const mappedStudents = studentsRes.data.data.map((student: any) => ({
+          ...student,
+          id: student._id || student.id,
+          section: student.section || "englophone"
+        }));
+        setStudents(mappedStudents);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to fetch students");
+      console.error("Error fetching students:", error);
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [studentsRes, classesRes] = await Promise.all([
-        axios.get(`${API_BASE}/students`),
-        axios.get(`${API_BASE}/classes`)
-      ]);
+      const classesRes = await axios.get(`${API_BASE}/classes`);
 
-      if (studentsRes.data.success) {
-        // FIXED: Map _id to id
-        const mappedStudents = studentsRes.data.data.map((student: any) => ({
-          ...student,
-          id: student._id || student.id // Use _id from MongoDB
-        }));
-        setStudents(mappedStudents);
-        console.log("📚 Students loaded:", mappedStudents);
-      }
       if (classesRes.data.success) {
         const mappedClasses = classesRes.data.data.map((cls: any) => ({
           ...cls,
           id: cls._id || cls.id,
+          schoolSection: cls.schoolSection || cls.section || "englophone",
           tuitionFee: Number(cls.tuitionFee) || 0,
           tuitionInstallments: Number(cls.tuitionInstallments) || 1,
           registrationFeeRequired: Boolean(cls.registrationFeeRequired),
           registrationFeeAmount: Number(cls.registrationFeeAmount) || 0,
         }));
         setClasses(mappedClasses);
+
+        const nextClassId = classFilter === "all" && mappedClasses[0] ? mappedClasses[0].id : classFilter;
+        if (nextClassId !== classFilter) {
+          setClassFilter(nextClassId);
+        }
+        await fetchStudents(nextClassId);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to fetch data");
@@ -106,8 +124,17 @@ export function StudentsPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!classes.length) return;
+    if (classFilter === "all") {
+      void fetchStudents("all");
+      return;
+    }
+    void fetchStudents(classFilter);
+  }, [classFilter, classes.length]);
 
   // Filter students
   const filtered = useMemo(() => {
@@ -155,6 +182,7 @@ export function StudentsPage() {
       const studentData = {
         fullName: student.fullName.trim(),
         gender: student.gender,
+        section: student.section || "englophone",
         dob: student.dob,
         classId: student.classId,
         department: student.department,
@@ -222,6 +250,7 @@ export function StudentsPage() {
       const studentData = {
         fullName: student.fullName.trim(),
         gender: student.gender,
+        section: student.section || "englophone",
         dob: student.dob,
         classId: student.classId,
         department: student.department,
@@ -494,14 +523,7 @@ export function StudentsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-black/60">Loading students...</p>
-        </div>
-      </div>
-    );
+    return <CompactPageLoader label="Loading students..." />;
   }
 
   return (
@@ -643,6 +665,7 @@ export function StudentsPage() {
             id: "st_" + Math.random().toString(36).slice(2, 9),
             fullName: "",
             gender: "male",
+            section: "englophone",
             dob: new Date().toISOString().slice(0, 10),
             classId: classes[0]?.id || "",
             department: classes[0]?.department || "Science",
@@ -806,6 +829,12 @@ function StudentDialog({
           <section className="space-y-4">
             {!isEditing && <h4 className="font-display font-bold">Student details</h4>}
             <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Section*">
+                <select value={form.section || "englophone"} onChange={(e) => set("section", e.target.value as "englophone" | "francophone")} className={inputCls}>
+                  <option value="englophone">Anglophone</option>
+                  <option value="francophone">Francophone</option>
+                </select>
+              </Field>
               <Field label="Full Name*">
                 <input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} className={inputCls} required autoFocus={!isEditing} />
               </Field>

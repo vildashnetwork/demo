@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Printer, Download, GraduationCap } from "lucide-react";
+import { CompactPageLoader } from "@/components/CompactPageLoader";
 import { toast } from "sonner";
 import axios from "axios";
 import { exportElementsToPdf } from "@/lib/pdf-export";
@@ -58,24 +59,18 @@ export function ReportCardsBulk() {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [attendanceSummaries, setAttendanceSummaries] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [classDataLoading, setClassDataLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
   // Fetch data
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [studentsRes, subjectsRes, classesRes, marksRes, teachersRes] = await Promise.all([
-        axios.get(`${API_BASE}/students`),
+      const [subjectsRes, classesRes, teachersRes] = await Promise.all([
         axios.get(`${API_BASE}/subjects`),
         axios.get(`${API_BASE}/classes`),
-        axios.get(`${API_BASE}/marks`),
         axios.get(`${API_BASE}/teachers`).catch(() => null), // optional endpoint, fail gracefully
       ]);
-
-      if (studentsRes.data.success) {
-        const mapped = studentsRes.data.data.map((s: any) => ({ ...s, id: s._id || s.id }));
-        setStudents(mapped);
-      }
       if (subjectsRes.data.success) {
         const mapped = subjectsRes.data.data.map((s: any) => ({ ...s, id: s._id || s.id }));
         setSubjects(mapped);
@@ -83,10 +78,6 @@ export function ReportCardsBulk() {
       if (classesRes.data.success) {
         const mapped = classesRes.data.data.map((c: any) => ({ ...c, id: c._id || c.id, className: c.className || c.name }));
         setClasses(mapped);
-      }
-      if (marksRes.data.success) {
-        const mapped = marksRes.data.data.map((m: any) => ({ ...m, id: m._id || m.id }));
-        setMarks(mapped);
       }
       if (teachersRes && teachersRes.data && teachersRes.data.success) {
         const mapped = teachersRes.data.data.map((t: any) => ({ ...t, id: t._id || t.id }));
@@ -107,6 +98,41 @@ export function ReportCardsBulk() {
   const cls = classes.find((c) => c.id === classId);
   const term = TERMS.find((t) => t.id === termId) || TERMS[0];
   const sequences = term.sequences;
+
+  useEffect(() => {
+    if (!classId || !cls) {
+      setStudents([]);
+      setMarks([]);
+      setClassDataLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setClassDataLoading(true);
+    Promise.all([
+      axios.get(`${API_BASE}/students/class/${classId}`),
+      axios.get(`${API_BASE}/marks`, {
+        params: { classId, academicYear: cls.acedemicYear || cls.academicYear || "" },
+      }),
+    ]).then(([studentsRes, marksRes]) => {
+      if (cancelled) return;
+      if (studentsRes.data.success) {
+        setStudents(studentsRes.data.data.map((student: any) => ({ ...student, id: student._id || student.id })));
+      }
+      if (marksRes.data.success) {
+        setMarks(marksRes.data.data.map((mark: any) => ({ ...mark, id: mark._id || mark.id })));
+      }
+    }).catch((error) => {
+      if (!cancelled) {
+        console.error("Unable to load this class's report-card data", error);
+        toast.error(error.response?.data?.message || "Could not load reports for this class");
+      }
+    }).finally(() => {
+      if (!cancelled) setClassDataLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [classId, cls?.acedemicYear, cls?.academicYear]);
 
   useEffect(() => {
     if (!cls || !classId) {
@@ -275,14 +301,7 @@ export function ReportCardsBulk() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-black/60">Loading report cards...</p>
-        </div>
-      </div>
-    );
+    return <CompactPageLoader label="Loading report cards..." />;
   }
 
   if (!cls) {
@@ -320,11 +339,18 @@ export function ReportCardsBulk() {
           <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold hover:bg-stone-50">
             <Printer className="size-4" /> Print all
           </button>
-          <button onClick={downloadAll} disabled={downloading} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-50">
+          <button onClick={downloadAll} disabled={downloading || classDataLoading} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-50">
             <Download className="size-4" /> {downloading ? "Generating…" : "Download PDF"}
           </button>
         </div>
       </div>
+
+      {classDataLoading && (
+        <div role="status" className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
+          <div className="size-4 animate-spin rounded-full border-2 border-blue-700 border-t-transparent" />
+          Loading students and marks for this class…
+        </div>
+      )}
 
       <div id="bulk-report-cards" className="space-y-6">
         {rankedReports.map((data, i) => (
@@ -360,36 +386,36 @@ function ReportCardCard({ data, cls, term, sequences, classSize }: { data: any; 
   const portraitUrl = data.student.photoUrl || defaultPortrait;
 
   return (
-    <div className="bg-white border border-[#d9e5dc] border-t-8 border-t-[#0b5137] max-w-4xl mx-auto print:border-0 print:shadow-none report-card-page">
+    <div className="bg-white border border-[#CADCF0] border-t-8 border-t-[#155DAA] max-w-4xl mx-auto print:border-0 print:shadow-none report-card-page">
       <div className="p-6 print:p-5">
         {/* Cameroon official header */}
         <div className="grid grid-cols-3 gap-4 items-center text-center text-[10px] font-bold uppercase tracking-wider pb-4 border-b-[3px] border-[#d2ad4b]">
-          <div className="text-left text-[#0b5137] leading-relaxed">
+          <div className="text-left text-[#155DAA] leading-relaxed">
             République du Cameroun<br />
             <span className="font-normal italic text-stone-500">Paix — Travail — Patrie</span><br />
             Ministère des Enseignements Secondaires
           </div>
           <div className="flex flex-col items-center justify-center">
-            <div className="size-12 bg-[#0b5137] border-[3px] border-[#d2ad4b] rounded-full grid place-items-center mb-1 text-white text-xs font-black">
+            <div className="size-12 bg-[#155DAA] border-[3px] border-[#d2ad4b] rounded-full grid place-items-center mb-1 text-white text-xs font-black">
               BCHS
             </div>
-            <div className="font-display text-lg font-extrabold tracking-tight text-[#0b5137]">BCHS DOUALA</div>
+            <div className="font-display text-lg font-extrabold tracking-tight text-[#155DAA]">BCHS DOUALA</div>
             <div className="text-[9px] text-stone-500 font-normal normal-case">Excellence · Discipline · Service</div>
           </div>
-          <div className="text-right text-[#0b5137] leading-relaxed">
+          <div className="text-right text-[#155DAA] leading-relaxed">
             Republic of Cameroon<br />
             <span className="font-normal italic text-stone-500">Peace — Work — Fatherland</span><br />
             Ministry of Secondary Education
           </div>
         </div>
 
-        <div className="my-4 flex items-center justify-between gap-3 border-l-4 border-[#0b5137] bg-[#f1f6f1] px-4 py-2.5">
-          <div className="font-display text-lg font-extrabold uppercase text-[#0b5137]">{term.label} Report</div>
+        <div className="my-4 flex items-center justify-between gap-3 border-l-4 border-[#155DAA] bg-[#EAF2FB] px-4 py-2.5">
+          <div className="font-display text-lg font-extrabold uppercase text-[#155DAA]">{term.label} Report</div>
           <div className="text-right text-[10px] font-bold text-stone-500">ACADEMIC YEAR<br /><span className="text-sm text-stone-800">{cls.acedemicYear || "—"}</span></div>
         </div>
 
         <div className="mb-4 grid grid-cols-[110px_1fr] gap-4 rounded-lg border border-[#d9e5dc] p-3">
-          <div className="relative h-[138px] w-[110px] overflow-hidden rounded-md border-2 border-[#d2ad4b] bg-[#e7f0e8] grid place-items-center text-3xl font-black text-[#0b5137]">
+          <div className="relative h-[138px] w-[110px] overflow-hidden rounded-md border-2 border-[#d2ad4b] bg-[#EAF2FB] grid place-items-center text-3xl font-black text-[#155DAA]">
             <img
               src={portraitUrl}
               alt={`${data.student.gender === "female" ? "Female" : "Male"} student portrait`}
@@ -402,7 +428,7 @@ function ReportCardCard({ data, cls, term, sequences, classSize }: { data: any; 
             />
           </div>
           <div>
-            <h2 className="mb-2 font-display text-xl font-extrabold text-[#0b5137]">{data.student.fullName}</h2>
+            <h2 className="mb-2 font-display text-xl font-extrabold text-[#155DAA]">{data.student.fullName}</h2>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] sm:grid-cols-3">
               <Info label="Matricule" value={matricule} />
               <Info label="Class" value={cls.className} />
@@ -420,7 +446,7 @@ function ReportCardCard({ data, cls, term, sequences, classSize }: { data: any; 
 
         {/* Marks table */}
         <table className="w-full text-[11px] mt-4 border border-[#0b5137]">
-          <thead className="bg-[#0b5137] text-white">
+          <thead className="bg-[#155DAA] text-white">
             <tr>
               <th className="px-2 py-1.5 text-left border border-[#121212]">Subject</th>
               {sequences.map((seq) => (
@@ -481,8 +507,8 @@ function ReportCardCard({ data, cls, term, sequences, classSize }: { data: any; 
         </div>
 
         {/* Conduct */}
-        <div className="mt-3 rounded-lg border border-[#d9e5dc] bg-[#f6f9f6] p-3">
-          <div className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-[#0b5137]">Attendance · {term.label}</div>
+        <div className="mt-3 rounded-lg border border-[#CADCF0] bg-[#F4F8FD] p-3">
+          <div className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-[#155DAA]">Attendance · {term.label}</div>
           <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
             <Summary label="Present" value={`${data.attendance.present} days`} />
             <Summary label="Absent" value={`${data.attendance.absent} days`} />
@@ -528,7 +554,7 @@ function ReportCardCard({ data, cls, term, sequences, classSize }: { data: any; 
         </div>
 
         <div className="mt-6 pt-3 border-t-2 border-[#d2ad4b] flex items-center justify-between text-[10px] text-stone-500">
-          <div className="font-semibold text-[#0b5137]">Issued by BCHS DOUALA · {new Date().toLocaleDateString()}</div>
+          <div className="font-semibold text-[#155DAA]">Issued by BCHS DOUALA · {new Date().toLocaleDateString()}</div>
           <div className="font-mono">VERIF#{data.student.id.toUpperCase()}-{term.id.toUpperCase()}</div>
         </div>
       </div>

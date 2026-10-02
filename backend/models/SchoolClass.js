@@ -55,6 +55,12 @@ const schoolClassSchema = new mongoose.Schema({
         required: [true, "Cycle is required"],
         trim: true
     },
+    schoolSection: {
+        type: String,
+        enum: ["englophone", "francophone"],
+        default: "englophone",
+        trim: true
+    },
     acedemicYear: {
         type: String,
         required: [true, "Academic year is required"],
@@ -160,6 +166,7 @@ schoolClassSchema.index({ className: 1, department: 1, acedemicYear: 1 });
 schoolClassSchema.index({ classMasterId: 1 });
 schoolClassSchema.index({ acedemicYear: 1 });
 schoolClassSchema.index({ isActive: 1 });
+schoolClassSchema.index({ schoolSection: 1 });
 
 // ============ FIXED: Pre-save middleware ============
 // Removed the problematic next parameter - using async/await instead

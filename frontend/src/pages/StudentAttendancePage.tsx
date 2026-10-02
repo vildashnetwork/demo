@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Save, RefreshCw } from "lucide-react";
+import { CompactPageLoader } from "@/components/CompactPageLoader";
 import axios from "axios";
 import { toast } from "sonner";
 
@@ -84,9 +85,14 @@ export function StudentAttendancePage() {
         }
     };
 
-    const fetchStudents = async () => {
+    const fetchStudents = async (classId: string) => {
+        if (!classId) {
+            setStudents([]);
+            return;
+        }
+
         try {
-            const response = await axios.get(`${API_BASE}/students`);
+            const response = await axios.get(`${API_BASE}/students/class/${classId}`);
             if (response.data.success) {
                 const mapped = response.data.data.map((item: any) => ({
                     ...item,
@@ -129,20 +135,37 @@ export function StudentAttendancePage() {
     useEffect(() => {
         const bootstrap = async () => {
             setLoading(true);
-            await Promise.all([fetchClasses(), fetchStudents()]);
+            await fetchClasses();
             setLoading(false);
         };
 
-        bootstrap();
+        void bootstrap();
     }, []);
 
     useEffect(() => {
+        if (!selectedClassId) {
+            setAttendance({});
+            setStudents([]);
+            return;
+        }
+
+        const loadClassStudents = async () => {
+            setLoading(true);
+            await fetchStudents(selectedClassId);
+            await syncAttendance();
+            setLoading(false);
+        };
+
+        void loadClassStudents();
+    }, [selectedClassId]);
+
+    useEffect(() => {
         if (selectedClassId) {
-            syncAttendance();
+            void syncAttendance();
         } else {
             setAttendance({});
         }
-    }, [selectedClassId, selectedDate]);
+    }, [selectedDate, selectedClassId]);
 
     const classStudents = useMemo(() => {
         return students
@@ -207,14 +230,7 @@ export function StudentAttendancePage() {
     };
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-[300px]">
-                <div className="text-center">
-                    <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p className="mt-4 text-black/60">Loading student attendance...</p>
-                </div>
-            </div>
-        );
+        return <CompactPageLoader label="Loading student attendance..." />;
     }
 
     return (

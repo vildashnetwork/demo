@@ -2,6 +2,9 @@ import express from "express";
 import mongoose from "mongoose";
 import Mark from "../models/Mark.js"; // Adjust the path as needed
 import Subject from "../models/Subject.js";
+import SchoolClass from "../models/SchoolClass.js";
+import Student from "../models/Students.js";
+import User from "../models/User.js";
 
 const router = express.Router();
 
@@ -37,55 +40,164 @@ router.get("/marks", async (req, res) => {
 
 router.get("/marks/dashboard-summary", async (req, res) => {
     try {
-        const [marks, subjects] = await Promise.all([
-            Mark.find().select("studentId subjectId classId sequence score").lean(),
+        const [aggregateRows, subjects, classes, students, totalTeachers] = await Promise.all([
+            Mark.aggregate([{
+                $facet: {
+                    studentSubjects: [{
+                        $group: {
+                            _id: { studentId: "$studentId", subjectId: "$subjectId" },
+                            scoreTotal: { $sum: "$score" },
+                            markCount: { $sum: 1 },
+                        },
+                    }],
+                    subjects: [{
+                        $group: {
+                            _id: "$subjectId",
+                            scoreTotal: { $sum: "$score" },
+                            markCount: { $sum: 1 },
+                        },
+                    }],
+                    sequences: [{
+                        $group: {
+                            _id: "$sequence",
+                            scoreTotal: { $sum: "$score" },
+                            markCount: { $sum: 1 },
+                        },
+                    }],
+                },
+            }]).allowDiskUse(true),
             Subject.find().select("_id name code coefficient").lean(),
+            SchoolClass.find().select("_id className department").lean(),
+            Student.find().select("_id fullName matricule classId department feesPaid feesDue").lean(),
+            User.countDocuments({ role: "teacher" }),
         ]);
+
+        const aggregate = aggregateRows[0] || { studentSubjects: [], subjects: [], sequences: [] };
         const subjectMap = new Map(subjects.map((subject) => [String(subject._id), subject]));
         const studentTotals = new Map();
-        const subjectTotals = new Map();
-        const sequenceTotals = new Map();
-
-        for (const mark of marks) {
-            const subject = subjectMap.get(String(mark.subjectId));
+        for (const groupedMark of aggregate.studentSubjects) {
+            const subject = subjectMap.get(String(groupedMark._id.subjectId));
             if (!subject) continue;
 
             const coefficient = Number(subject.coefficient) || 1;
-            const studentTotal = studentTotals.get(mark.studentId) || { weightedScore: 0, coefficientTotal: 0 };
-            studentTotal.weightedScore += mark.score * coefficient;
-            studentTotal.coefficientTotal += coefficient;
-            studentTotals.set(mark.studentId, studentTotal);
+            const studentId = String(groupedMark._id.studentId);
+            const studentTotal = studentTotals.get(studentId) || { weightedScore: 0, coefficientTotal: 0 };
+            studentTotal.weightedScore += groupedMark.scoreTotal * coefficient;
+            studentTotal.coefficientTotal += groupedMark.markCount * coefficient;
+            studentTotals.set(studentId, studentTotal);
+        }
 
-            const subjectTotal = subjectTotals.get(String(subject._id)) || { total: 0, count: 0 };
-            subjectTotal.total += mark.score;
-            subjectTotal.count += 1;
-            subjectTotals.set(String(subject._id), subjectTotal);
+        const studentLookup = new Map(students.map((student) => [String(student._id), student]));
+        const studentAverages = Array.from(studentTotals, ([id, total]) => ({
+            id,
+            avg: total.coefficientTotal ? total.weightedScore / total.coefficientTotal : 0,
+        }));
 
-            const sequenceTotal = sequenceTotals.get(mark.sequence) || { total: 0, count: 0 };
-            sequenceTotal.total += mark.score;
-            sequenceTotal.count += 1;
-            sequenceTotals.set(mark.sequence, sequenceTotal);
+        const averageByStudent = new Map(studentAverages.map((student) => [student.id, student.avg]));
+        const rankedStudents = [...studentAverages].sort((first, second) => second.avg - first.avg);
+        const topStudents = [];
+        let previousAverage = Number.POSITIVE_INFINITY;
+        let previousRank = 0;
+        rankedStudents.forEach((entry, index) => {
+            if (entry.avg < previousAverage) {
+                previousRank = index + 1;
+                previousAverage = entry.avg;
+            }
+            if (index < 7) {
+                const student = studentLookup.get(entry.id);
+                if (student) {
+                    topStudents.push({
+                        id: entry.id,
+                        avg: entry.avg,
+                        rank: previousRank,
+                        student: {
+                            id: entry.id,
+                            fullName: student.fullName,
+                            department: student.department,
+                            matricule: student.matricule || "",
+                        },
+                    });
+                }
+            }
+        });
+
+        const classTotals = new Map();
+        for (const student of students) {
+            const classId = String(student.classId);
+            const classTotal = classTotals.get(classId) || { total: 0, count: 0 };
+            classTotal.total += averageByStudent.get(String(student._id)) || 0;
+            classTotal.count += 1;
+            classTotals.set(classId, classTotal);
+        }
+        const classAverages = classes.map((schoolClass) => {
+            const total = classTotals.get(String(schoolClass._id)) || { total: 0, count: 0 };
+            return {
+                name: `${schoolClass.className.replace("Form ", "F")} ${schoolClass.department || ""}`.trim(),
+                avg: total.count ? Math.round((total.total / total.count) * 10) / 10 : 0,
+            };
+        });
+
+        const subjectAverages = aggregate.subjects.flatMap((total) => {
+            const subject = subjectMap.get(String(total._id));
+            return subject && total.markCount ? [{
+                subjectId: String(subject._id),
+                name: `${subject.name} (${subject.code})`,
+                average: Math.round((total.scoreTotal / total.markCount) * 10) / 10,
+                markCount: total.markCount,
+            }] : [];
+        });
+
+        const sequenceNumbers = ["1st seq", "2nd seq", "3rd seq", "4th seq", "5th seq", "6th seq"];
+        const sequenceMap = new Map(
+            aggregate.sequences.map((sequence) => [String(sequence._id), sequence])
+        );
+        const sequenceAverages = sequenceNumbers.map((sequenceLabel, index) => {
+            const key = String(index + 1);
+            const total = sequenceMap.get(key) || sequenceMap.get(sequenceLabel);
+            return {
+                sequence: `Seq ${index + 1}`,
+                average: total?.markCount ? Math.round((total.scoreTotal / total.markCount) * 10) / 10 : null,
+            };
+        });
+
+        const bestClass = [...classAverages].sort((first, second) => second.avg - first.avg)[0] || null;
+        const bestSubject = [...subjectAverages].sort((first, second) => second.average - first.average)[0] || null;
+        const passRate = studentAverages.length
+            ? (studentAverages.filter((student) => student.avg >= 10).length / studentAverages.length) * 100
+            : 0;
+        const totalFeesPaid = students.reduce((total, student) => total + (Number(student.feesPaid) || 0), 0);
+        const totalFeesDue = students.reduce((total, student) => total + (Number(student.feesDue) || 0), 0);
+
+        let aiInsight = "Monitor student performance regularly for the best results.";
+        const lowestClass = [...classAverages].sort((first, second) => first.avg - second.avg)[0];
+        if (lowestClass?.avg < 10) {
+            aiInsight = `${lowestClass.name} shows a low average of ${lowestClass.avg}. Consider remedial classes for this class.`;
+        } else if (sequenceAverages.length > 1) {
+            const latest = sequenceAverages[sequenceAverages.length - 1].average;
+            const previous = sequenceAverages[sequenceAverages.length - 2].average;
+            if (latest !== null && previous !== null) {
+                aiInsight = latest < previous
+                    ? `There's a ${(previous - latest).toFixed(1)} point drop in the latest sequence. Schedule review sessions.`
+                    : `Overall performance is trending ${latest > previous ? "upward" : "stable"}. Keep up the good work!`;
+            }
         }
 
         res.status(200).json({
             success: true,
             data: {
-                studentAverages: Array.from(studentTotals, ([studentId, total]) => ({
-                    id: studentId,
-                    avg: total.coefficientTotal ? total.weightedScore / total.coefficientTotal : 0,
-                })),
-                subjectAverages: subjects.flatMap((subject) => {
-                    const total = subjectTotals.get(String(subject._id));
-                    return total ? [{
-                        subjectId: String(subject._id),
-                        average: total.total / total.count,
-                        markCount: total.count,
-                    }] : [];
-                }),
-                sequenceAverages: Array.from(sequenceTotals, ([sequence, total]) => ({
-                    sequence,
-                    average: total.count ? total.total / total.count : 0,
-                })),
+                totalStudents: students.length,
+                totalTeachers,
+                totalClasses: classes.length,
+                totalFeesPaid,
+                totalFeesDue,
+                passRate,
+                classAvgs: classAverages,
+                bestClass,
+                subjectAvgs: subjectAverages.map(({ name, average }) => ({ name, avg: average })),
+                bestSubject: bestSubject ? { name: bestSubject.name, avg: bestSubject.average } : null,
+                top: topStudents,
+                trend: sequenceAverages,
+                aiInsight,
             },
         });
     } catch (error) {

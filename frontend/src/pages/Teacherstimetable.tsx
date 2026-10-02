@@ -1491,6 +1491,7 @@ import {
   Sun, Moon, Settings, Bell, Award, DollarSign, Download, Printer,
   ChevronDown, ChevronUp, FileDown, LayoutGrid, RefreshCw
 } from "lucide-react";
+import { CompactPageLoader } from "@/components/CompactPageLoader";
 import { toast } from "sonner";
 import axios from "axios";
 
@@ -2319,14 +2320,7 @@ export function TeacherTimetableView() {
   // ============================================
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px] sm:min-h-[500px]">
-        <div className="text-center px-4">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-3 sm:mt-4 text-sm sm:text-base text-black/60 font-medium">Loading your timetable...</p>
-        </div>
-      </div>
-    );
+    return <CompactPageLoader label="Loading your timetable..." />;
   }
 
   if (error && !timetableData) {

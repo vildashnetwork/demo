@@ -152,6 +152,9 @@ export function ReportCardsIndex() {
   const [attendanceSummaries, setAttendanceSummaries] = useState<Record<string, AttendanceSummary>>({});
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [classDataLoading, setClassDataLoading] = useState(false);
+  const [classDataRetry, setClassDataRetry] = useState(0);
+  const [loadError, setLoadError] = useState("");
   const [teacher, setTeacher] = useState<any>(null);
   const [generatingPDF, setGeneratingPDF] = useState(false);
 
@@ -163,21 +166,12 @@ export function ReportCardsIndex() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [studentsRes, subjectsRes, classesRes, marksRes, usersRes] = await Promise.all([
-        axios.get(`${API_BASE}/students`),
+      setLoadError("");
+      const [subjectsRes, classesRes, usersRes] = await Promise.all([
         axios.get(`${API_BASE}/subjects`),
         axios.get(`${API_BASE}/classes`),
-        axios.get(`${API_BASE}/marks`),
         axios.get(`${API_BASE}/users`),
       ]);
-
-      if (studentsRes.data.success) {
-        const mappedStudents = studentsRes.data.data.map((s: any) => ({
-          ...s,
-          id: s._id || s.id
-        }));
-        setStudents(mappedStudents);
-      }
 
       if (subjectsRes.data.success) {
         const mappedSubjects = subjectsRes.data.data.map((s: any) => ({
@@ -204,14 +198,6 @@ export function ReportCardsIndex() {
         }
       }
 
-      if (marksRes.data.success) {
-        const mappedMarks = marksRes.data.data.map((m: any) => ({
-          ...m,
-          id: m._id || m.id
-        }));
-        setMarks(mappedMarks);
-      }
-
       if (usersRes.data.success) {
         const teacherUsers = usersRes.data.data.filter((u: any) => u.role === "teacher");
         const mappedTeachers = teacherUsers.map((t: any) => ({
@@ -229,6 +215,7 @@ export function ReportCardsIndex() {
       }
     } catch (error: any) {
       console.error("Error fetching data:", error);
+      setLoadError(error.response?.data?.message || "Could not load class and subject lists.");
       toast.error(error.response?.data?.message || "Failed to fetch data");
     } finally {
       setLoading(false);
@@ -238,6 +225,60 @@ export function ReportCardsIndex() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const selectedClass = useMemo(() => {
+    return classes.find((schoolClass) => schoolClass.id === classId);
+  }, [classes, classId]);
+
+  useEffect(() => {
+    if (!classId) {
+      setStudents([]);
+      setMarks([]);
+      setClassDataLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setClassDataLoading(true);
+    setLoadError("");
+    setStudents([]);
+    setMarks([]);
+
+    const params = selectedClass?.acedemicYear ? { academicYear: selectedClass.acedemicYear } : {};
+    Promise.all([
+      axios.get(`${API_BASE}/students/class/${classId}`),
+      axios.get(`${API_BASE}/marks`, { params: { classId, ...params } }),
+    ]).then(([studentsRes, marksRes]) => {
+      if (cancelled) return;
+      if (studentsRes.data.success) {
+        setStudents(studentsRes.data.data.map((student: any) => ({
+          ...student,
+          id: String(student._id || student.id),
+          classId: String(student.classId),
+          matricule: student.matricule || student.admissionNumber || "",
+          admissionNumber: student.admissionNumber || student.matricule || "",
+        })));
+      }
+      if (marksRes.data.success) {
+        setMarks(marksRes.data.data.map((mark: any) => ({
+          ...mark,
+          id: mark._id || mark.id,
+          studentId: String(mark.studentId),
+          subjectId: String(mark.subjectId),
+          classId: String(mark.classId),
+          academicyear: mark.academicyear || mark.academicYear || "",
+        })));
+      }
+    }).catch((error: any) => {
+      if (cancelled) return;
+      console.error("Error fetching class report data:", error);
+      setLoadError(error.response?.data?.message || "Could not load reports for this class.");
+    }).finally(() => {
+      if (!cancelled) setClassDataLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [classId, selectedClass?.acedemicYear, classDataRetry]);
 
   useEffect(() => {
     if (!classId || !selectedAcademicYear) {
@@ -316,10 +357,6 @@ export function ReportCardsIndex() {
     }
     return filteredClasses;
   }, [filteredClasses, isTeacher, teacher]);
-
-  const selectedClass = useMemo(() => {
-    return classes.find((c) => c.id === classId);
-  }, [classes, classId]);
 
   const classSubjects = useMemo(() => {
     return subjects.filter((s) => s.classIds.includes(classId));
@@ -681,7 +718,7 @@ export function ReportCardsIndex() {
     const matricule = data.student.matricule || data.student.admissionNumber || "Not assigned";
     const defaultPortrait = data.student.gender === "female" ? "/female-student-avatar.svg" : "/male-student-avatar.svg";
     const photoUrl = escapeHtml(data.student.photoUrl || defaultPortrait);
-    const portrait = `<img src="${photoUrl}" alt="${escapeHtml(studentName)}" crossorigin="anonymous" onerror="this.onerror=null;this.src='${defaultPortrait}'" style="width:100%;height:100%;object-fit:cover;display:block;background:#e7f0e8;"/>`;
+    const portrait = `<img src="${photoUrl}" alt="${escapeHtml(studentName)}" crossorigin="anonymous" onerror="this.onerror=null;this.src='${defaultPortrait}'" style="width:100%;height:100%;object-fit:cover;display:block;background:#EAF2FB;"/>`;
 
     // Build sequence headers using display columns
     const seqHeaders = displayCols.map((col) =>
@@ -726,36 +763,36 @@ export function ReportCardsIndex() {
     const totalSeqCells = displayCols.map(() => `<td style="padding:5px 6px;border:1px solid #000000;text-align:center;">-</td>`).join("");
 
     return `
-      <div style="font-family:'Segoe UI',Arial,sans-serif;color:#183328;max-width:1000px;margin:0 auto;border:1px solid #d9e5dc;border-top:8px solid #0b5137;background:#ffffff;">
+      <div style="font-family:'Segoe UI',Arial,sans-serif;color:#17324D;max-width:1000px;margin:0 auto;border:1px solid #CADCF0;border-top:8px solid #155DAA;background:#ffffff;">
         <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;padding:14px 16px;border-bottom:3px solid #d2ad4b;">
-          <div style="text-align:left;line-height:1.5;color:#0b5137;">
+          <div style="text-align:left;line-height:1.5;color:#155DAA;">
             République du Cameroun<br/>
             <span style="font-weight:600;font-style:italic;text-transform:none;color:#6b756d;">Paix — Travail — Patrie</span><br/>
             Ministère des Enseignements Secondaires
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-            <div style="width:48px;height:48px;border-radius:50%;background:#0b5137;border:3px solid #d2ad4b;display:flex;align-items:center;justify-content:center;margin-bottom:2px;color:#fff;font-size:12px;font-weight:900;">
+            <div style="width:48px;height:48px;border-radius:50%;background:#155DAA;border:3px solid #d2ad4b;display:flex;align-items:center;justify-content:center;margin-bottom:2px;color:#fff;font-size:12px;font-weight:900;">
               BCHS
             </div>
-            <div style="font-size:17px;font-weight:900;color:#0b5137;text-transform:none;">BCHS DOUALA</div>
+            <div style="font-size:17px;font-weight:900;color:#155DAA;text-transform:none;">BCHS DOUALA</div>
             <div style="font-size:8.5px;color:#6b756d;font-weight:600;text-transform:none;">Excellence · Discipline · Service</div>
           </div>
-          <div style="text-align:right;line-height:1.5;color:#0b5137;">
+          <div style="text-align:right;line-height:1.5;color:#155DAA;">
             Republic of Cameroon<br/>
             <span style="font-weight:600;font-style:italic;text-transform:none;color:#6b756d;">Peace — Work — Fatherland</span><br/>
             Ministry of Secondary Education
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 16px;padding:10px 14px;background:#f1f6f1;border-left:5px solid #0b5137;">
-          <div style="font-size:17px;font-weight:800;color:#0b5137;text-transform:uppercase;">${ctx.title} Report</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 16px;padding:10px 14px;background:#EAF2FB;border-left:5px solid #155DAA;">
+          <div style="font-size:17px;font-weight:800;color:#155DAA;text-transform:uppercase;">${ctx.title} Report</div>
           <div style="text-align:right;font-size:10px;font-weight:700;color:#52665a;">ACADEMIC YEAR<br/><span style="font-size:13px;color:#183328;">${escapeHtml(ctx.academicYear)}</span></div>
         </div>
 
-        <div style="display:grid;grid-template-columns:116px 1fr;gap:14px;margin:0 16px 14px;padding:12px;border:1px solid #d9e5dc;border-radius:8px;background:#fff;">
-          <div style="width:116px;height:142px;overflow:hidden;border:2px solid #d2ad4b;border-radius:6px;background:#e7f0e8;">${portrait}</div>
+        <div style="display:grid;grid-template-columns:116px 1fr;gap:14px;margin:0 16px 14px;padding:12px;border:1px solid #CADCF0;border-radius:8px;background:#fff;">
+          <div style="width:116px;height:142px;overflow:hidden;border:2px solid #d2ad4b;border-radius:6px;background:#EAF2FB;">${portrait}</div>
           <div>
-            <div style="font-size:18px;font-weight:800;color:#0b5137;margin-bottom:8px;">${escapeHtml(studentName)}</div>
+            <div style="font-size:18px;font-weight:800;color:#155DAA;margin-bottom:8px;">${escapeHtml(studentName)}</div>
             <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;font-size:10px;">
               <div><b style="color:#718076;">MATRICULE</b><br/><span style="font-weight:700;color:#183328;">${escapeHtml(matricule)}</span></div>
               <div><b style="color:#718076;">CLASS</b><br/><span style="font-weight:700;color:#183328;">${escapeHtml(ctx.selectedClass?.className || "")}</span></div>
@@ -773,7 +810,7 @@ export function ReportCardsIndex() {
 
         <table style="width:100%;border-collapse:collapse;font-size:10px;border:1px solid #121212;margin-bottom:16px;">
           <thead>
-            <tr style="background:#0b5137;color:#fff;">
+            <tr style="background:#155DAA;color:#fff;">
               <th style="padding:5px 6px;border:1px solid #d2ad4b;font-weight:700;text-align:center;font-size:10px;">Discipline / Subject</th>
               ${seqHeaders}
               <th style="padding:5px 6px;border:1px solid #000000;font-weight:700;text-align:center;font-size:10px;">Avg</th>
@@ -823,8 +860,8 @@ export function ReportCardsIndex() {
           </div>
         </div>
 
-        <div style="margin-bottom:14px;padding:10px 12px;border:1px solid #d9e5dc;border-radius:8px;background:#f6f9f6;">
-          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#0b5137;margin-bottom:7px;">Attendance · ${escapeHtml(ctx.title)}</div>
+          <div style="margin-bottom:14px;padding:10px 12px;border:1px solid #CADCF0;border-radius:8px;background:#F4F8FD;">
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#155DAA;margin-bottom:7px;">Attendance · ${escapeHtml(ctx.title)}</div>
           <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;font-size:10px;">
             <div><b>Present</b><br/>${data.attendance?.present ?? 0} days</div>
             <div><b>Absent</b><br/>${data.attendance?.absent ?? 0} days</div>
@@ -872,17 +909,6 @@ export function ReportCardsIndex() {
     `;
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-black/60">Loading data...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -922,6 +948,7 @@ export function ReportCardsIndex() {
           className="px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold"
         >
           <option value="">Select Class</option>
+          {loading && <option value="" disabled>Loading classes...</option>}
           {allowedClasses.map((c) => (
             <option key={c.id} value={c.id}>{c.className + " " + c.department}</option>
           ))}
@@ -939,7 +966,7 @@ export function ReportCardsIndex() {
 
         <button
           onClick={generateBulkPDF}
-          disabled={generatingPDF || reportData.length === 0}
+          disabled={generatingPDF || classDataLoading || reportData.length === 0}
           className="ml-auto flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-50"
         >
           {generatingPDF ? (
@@ -954,6 +981,21 @@ export function ReportCardsIndex() {
           )}
         </button>
       </div>
+
+      {loadError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <span>{loadError}</span>
+          <button
+            onClick={() => {
+              void fetchData();
+              setClassDataRetry((attempt) => attempt + 1);
+            }}
+            className="font-bold underline underline-offset-2"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <Stat label="Students" value={stats.total.toString()} />
@@ -976,6 +1018,13 @@ export function ReportCardsIndex() {
             <span>Pass: ≥10/20</span>
           </div>
         </div>
+
+        {classDataLoading && (
+          <div className="flex items-center gap-3 border-b border-stone-100 bg-[#EAF2FB] px-5 py-3 text-sm text-[#155DAA]" role="status">
+            <div className="size-4 animate-spin rounded-full border-2 border-[#155DAA] border-t-transparent" />
+            Loading this class’s students and marks…
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -1022,7 +1071,7 @@ export function ReportCardsIndex() {
               {reportData.length === 0 && (
                 <tr>
                   <td colSpan={5} className="text-center py-12 text-black/40">
-                    {classId ? "No students found for this class." : "Please select a class."}
+                    {classDataLoading ? "Preparing this class’s reports…" : classId ? "No students found for this class." : "Please select a class."}
                   </td>
                 </tr>
               )}

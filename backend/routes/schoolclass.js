@@ -170,6 +170,10 @@ router.post("/classes", async (req, res) => {
     try {
         const classData = req.body;
 
+        if (!classData.schoolSection) {
+            classData.schoolSection = 'englophone';
+        }
+
         // Handle academicYear to acedemicYear mapping
         if (classData.academicYear && !classData.acedemicYear) {
             classData.acedemicYear = classData.academicYear;
@@ -209,7 +213,8 @@ router.post("/classes", async (req, res) => {
         const existing = await SchoolClass.findOne({
             className: classData.className,
             department: classData.department,
-            acedemicYear: classData.acedemicYear
+            acedemicYear: classData.acedemicYear,
+            schoolSection: classData.schoolSection || 'englophone'
         });
 
         if (existing) {
