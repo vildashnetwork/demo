@@ -39,7 +39,7 @@ const NAV: NavItem[] = [
   { to: "/app/settings", label: "School Settings", icon: Settings, roles: ["super_admin", "admin"] },
 ];
 
-const navText = getStoredSchoolSection() === "englophone"
+const navText = getStoredSchoolSection() === "francophone"
   ? {
     dashboard: "Tableau de bord",
     students: "Élèves",
@@ -119,7 +119,7 @@ export function AppLayout() {
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {items.map((item) => {
-            const translatedLabel = getStoredSchoolSection() === "englophone"
+            const translatedLabel = getStoredSchoolSection() === "francophone"
               ? item.to === "/app" ? navText.dashboard :
                 item.to === "/app/students" ? navText.students :
                   item.to === "/app/teachers" ? navText.teachers :
@@ -199,7 +199,7 @@ export function AppLayout() {
             </button>
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-stone-100 rounded-full">
               <span className="size-2 bg-brand rounded-full" />
-              <span className="text-xs font-semibold">{getStoredSchoolSection() === "englophone" ? "En direct" : "Live"}</span>
+              <span className="text-xs font-semibold">{getStoredSchoolSection() === "francophone" ? "En direct" : "Live"}</span>
             </div>
           </div>
         </header>
@@ -210,20 +210,20 @@ export function AppLayout() {
 }
 
 function getPageTitle(p: string) {
-  const isAnglophoneMode = getStoredSchoolSection() === "englophone";
-  if (p === "/app") return isAnglophoneMode ? "Vue d’ensemble" : "Overview Dashboard";
-  if (p.startsWith("/app/students")) return isAnglophoneMode ? "Élèves" : "Students";
-  if (p.startsWith("/app/teachers")) return isAnglophoneMode ? "Enseignants" : "Teachers";
-  if (p.startsWith("/app/teacher-attendance")) return isAnglophoneMode ? "Présence enseignants" : "Teacher Attendance";
-  if (p.startsWith("/app/teacher-salaries")) return isAnglophoneMode ? "Salaires enseignants" : "Teacher Salaries";
-  if (p.startsWith("/app/teacher-timetable")) return isAnglophoneMode ? "Emploi du temps enseignant" : "Teacher Timetable";
-  if (p.startsWith("/app/classes")) return isAnglophoneMode ? "Classes & matières" : "Classes & Subjects";
-  if (p.startsWith("/app/mark-entry")) return isAnglophoneMode ? "Saisie des notes" : "Mark Entry";
-  if (p.startsWith("/app/student-attendance")) return isAnglophoneMode ? "Présence des élèves" : "Student Attendance";
-  if (p.startsWith("/app/report-cards")) return isAnglophoneMode ? "Bulletins" : "Report Cards";
-  if (p.startsWith("/app/class-lists")) return isAnglophoneMode ? "Listes de classes" : "Class Lists";
-  if (p.startsWith("/app/promotion")) return isAnglophoneMode ? "Promotion" : "Promotion";
-  if (p.startsWith("/app/fees")) return isAnglophoneMode ? "Frais & finance" : "Fees & Finance";
-  if (p.startsWith("/app/settings")) return isAnglophoneMode ? "Paramètres de l’école" : "School Settings";
+  const isFrancophoneMode = getStoredSchoolSection() === "francophone";
+  if (p === "/app") return isFrancophoneMode ? "Vue d’ensemble" : "Overview Dashboard";
+  if (p.startsWith("/app/students")) return isFrancophoneMode ? "Élèves" : "Students";
+  if (p.startsWith("/app/teachers")) return isFrancophoneMode ? "Enseignants" : "Teachers";
+  if (p.startsWith("/app/teacher-attendance")) return isFrancophoneMode ? "Présence enseignants" : "Teacher Attendance";
+  if (p.startsWith("/app/teacher-salaries")) return isFrancophoneMode ? "Salaires enseignants" : "Teacher Salaries";
+  if (p.startsWith("/app/teacher-timetable")) return isFrancophoneMode ? "Emploi du temps enseignant" : "Teacher Timetable";
+  if (p.startsWith("/app/classes")) return isFrancophoneMode ? "Classes & matières" : "Classes & Subjects";
+  if (p.startsWith("/app/mark-entry")) return isFrancophoneMode ? "Saisie des notes" : "Mark Entry";
+  if (p.startsWith("/app/student-attendance")) return isFrancophoneMode ? "Présence des élèves" : "Student Attendance";
+  if (p.startsWith("/app/report-cards")) return isFrancophoneMode ? "Bulletins" : "Report Cards";
+  if (p.startsWith("/app/class-lists")) return isFrancophoneMode ? "Listes de classes" : "Class Lists";
+  if (p.startsWith("/app/promotion")) return isFrancophoneMode ? "Promotion" : "Promotion";
+  if (p.startsWith("/app/fees")) return isFrancophoneMode ? "Frais & finance" : "Fees & Finance";
+  if (p.startsWith("/app/settings")) return isFrancophoneMode ? "Paramètres de l’école" : "School Settings";
   return "BCHS DOUALA";
 }

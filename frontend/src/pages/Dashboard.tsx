@@ -170,8 +170,8 @@ const EMPTY_DASHBOARD: DashboardSummary = {
 export function Dashboard() {
   const user = currentUser();
   const isTeacher = user?.role === "teacher";
-  const isAnglophoneMode = getStoredSchoolSection() === "englophone";
-  const labels = isAnglophoneMode
+  const isFrancophoneMode = getStoredSchoolSection() === "francophone";
+  const labels = isFrancophoneMode
     ? {
       welcome: "Bon retour",
       subtitle: "Voici ce qui se passe aujourd’hui au sein du portail scolaire.",
@@ -434,7 +434,7 @@ export function Dashboard() {
             </div>
             <h3 className="font-display font-bold text-lg">{labels.aiInsight}</h3>
             <p className="text-sm text-white/60 mt-2">
-              {data.aiInsight || (isAnglophoneMode ? "Surveillez régulièrement les performances des élèves pour obtenir les meilleurs résultats." : "Monitor student performance regularly for the best results.")}
+              {data.aiInsight || (isFrancophoneMode ? "Surveillez régulièrement les performances des élèves pour obtenir les meilleurs résultats." : "Monitor student performance regularly for the best results.")}
             </p>
           </div>
           <div className="mt-4 pt-4 border-t border-white/10 text-xs text-white/40">

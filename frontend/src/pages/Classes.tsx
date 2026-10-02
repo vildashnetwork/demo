@@ -778,16 +778,6 @@ function SubjectDialog({
   const set = <K extends keyof Subject>(k: K, v: Subject[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const changeSection = (section: Subject["section"]) => {
-    setForm((current) => ({
-      ...current,
-      section,
-      classIds: current.classIds.filter((id) => classes.find((schoolClass) => schoolClass.id === id)?.schoolSection === section),
-      teacherIds: current.teacherIds.filter((id) => teachers.find((teacher) => teacher.id === id)?.section === section),
-      periodsByClass: Object.fromEntries(Object.entries(current.periodsByClass).filter(([id]) => classes.find((schoolClass) => schoolClass.id === id)?.schoolSection === section)),
-    }));
-  };
-
   const sectionClasses = classes.filter((schoolClass) => schoolClass.schoolSection === form.section);
   const sectionTeachers = teachers.filter((teacher) => teacher.section === form.section);
 
@@ -856,14 +846,9 @@ function SubjectDialog({
             />
           </Field>
           <Field label="Section*">
-            <select
-              value={form.section || "englophone"}
-              onChange={(e) => changeSection(e.target.value as Subject["section"])}
-              className={inputCls}
-            >
-              <option value="englophone">Anglophone</option>
-              <option value="francophone">Francophone</option>
-            </select>
+            <div className={`${inputCls} text-black/60`}>
+              {form.section === "francophone" ? "Francophone" : "Anglophone"}
+            </div>
           </Field>
           <Field label="Coefficient*">
             <input
@@ -1142,24 +1127,9 @@ function ClassDialog({
           </Field>
 
           <Field label="School Section*">
-            <select
-              value={form.schoolSection || "englophone"}
-              onChange={(e) => {
-                const schoolSection = e.target.value as SchoolClass["schoolSection"];
-                setForm((current) => ({
-                  ...current,
-                  schoolSection,
-                  className: "",
-                  cycle: "1st Cycle",
-                  classMasterId: teachers.find((teacher) => teacher.id === current.classMasterId)?.section === schoolSection ? current.classMasterId : "",
-                }));
-              }}
-              className={inputCls}
-              required
-            >
-              <option value="englophone">Anglophone</option>
-              <option value="francophone">Francophone</option>
-            </select>
+            <div className={`${inputCls} text-black/60`}>
+              {form.schoolSection === "francophone" ? "Francophone" : "Anglophone"}
+            </div>
           </Field>
 
           <Field label="Class Master*">

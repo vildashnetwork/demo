@@ -713,12 +713,15 @@ const englishTranslations: Record<string, string> = {
 };
 
 const dictionary: Record<Language, Record<string, string>> = {
-    en: englishTranslations,
+    en: {
+        ...Object.fromEntries(Object.entries(frenchTranslations).map(([english, french]) => [french, english])),
+        ...englishTranslations,
+    },
     fr: frenchTranslations,
 };
 
 export function languageForSection(section: SchoolSection): Language {
-    return section === "englophone" ? "fr" : "en";
+    return section === "francophone" ? "fr" : "en";
 }
 
 export function translateText(value: string, language: Language): string {
@@ -731,6 +734,10 @@ export function translateText(value: string, language: Language): string {
         if (key.length < 4) return text;
         return text.replace(new RegExp(`(^|\\b)${escapeRegExp(key)}(?=\\b|$)`, "gi"), (match, prefix: string) => `${prefix}${translations[key]}`);
     }, value);
+}
+
+export function translateTextForCurrentSection(value: string): string {
+    return translateText(value, languageForSection(getStoredSchoolSection()));
 }
 
 function escapeRegExp(value: string) {
@@ -762,55 +769,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         document.documentElement.lang = language;
-        if (!document.body) return;
-        const textRecords = new WeakMap<Text, { original: string; translated: string }>();
-        const attributeRecords = new WeakMap<Element, Map<string, { original: string; translated: string }>>();
-        const ignoredAttributes = new Set(["title", "placeholder", "aria-label", "aria-placeholder"]);
-
-        const localizeText = (node: Text) => {
-            const current = node.data;
-            const existing = textRecords.get(node);
-            const original = existing && current === existing.translated ? existing.original : current;
-            const translated = translateText(original, language);
-            textRecords.set(node, { original, translated });
-            if (translated !== current) node.data = translated;
-        };
-
-        const localizeAttributes = (element: Element) => {
-            const records = attributeRecords.get(element) ?? new Map();
-            for (const attribute of Array.from(element.attributes)) {
-                if (!ignoredAttributes.has(attribute.name)) continue;
-                const existing = records.get(attribute.name);
-                const original = existing && attribute.value === existing.translated ? existing.original : attribute.value;
-                const translated = translateText(original, language);
-                records.set(attribute.name, { original, translated });
-                if (translated !== attribute.value) element.setAttribute(attribute.name, translated);
-            }
-            attributeRecords.set(element, records);
-        };
-
-        const localizeNode = (node: Node) => {
-            if (node.nodeType === Node.TEXT_NODE) {
-                const parent = node.parentElement;
-                if (parent && !parent.closest("script,style,code,pre,svg,[data-no-translate]")) localizeText(node as Text);
-                return;
-            }
-            if (!(node instanceof Element) || node.closest("script,style,code,pre,svg,[data-no-translate]")) return;
-            localizeAttributes(node);
-            const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
-            while (walker.nextNode()) localizeNode(walker.currentNode);
-        };
-
-        localizeNode(document.body);
-        const observer = new MutationObserver((mutations) => {
-            for (const mutation of mutations) {
-                if (mutation.type === "characterData") localizeNode(mutation.target);
-                if (mutation.type === "attributes") localizeAttributes(mutation.target as Element);
-                for (const addedNode of Array.from(mutation.addedNodes)) localizeNode(addedNode);
-            }
-        });
-        observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: [...ignoredAttributes] });
-        return () => observer.disconnect();
     }, [language]);
 
     const value = useMemo<LanguageContextValue>(() => ({
