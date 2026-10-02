@@ -9,7 +9,11 @@ const router = express.Router();
 // Get all classes
 router.get("/classes", async (req, res) => {
     try {
-        const classes = await SchoolClass.find().sort({ className: 1 });
+        const records = await SchoolClass.find().sort({ className: 1 }).lean();
+        const classes = records.map((schoolClass) => ({
+            ...schoolClass,
+            fullName: [schoolClass.className, schoolClass.department, schoolClass.section].filter(Boolean).join(" ")
+        }));
         res.status(200).json({
             success: true,
             count: classes.length,

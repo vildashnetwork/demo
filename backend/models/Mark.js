@@ -36,6 +36,9 @@ const MarkSchema = new mongoose.Schema({
 // Record deletions for the offline/online sync
 MarkSchema.plugin(syncTombstonePlugin);
 
+MarkSchema.index({ classId: 1, academicyear: 1, sequence: 1 });
+MarkSchema.index({ studentId: 1, academicyear: 1 });
+
 const Mark = mongoose.model("Mark", MarkSchema);
 
 export default Mark

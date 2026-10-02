@@ -9,7 +9,7 @@ const router = express.Router();
 // GET all subjects
 router.get("/subjects", async (req, res) => {
     try {
-        const subjects = await Subject.find().sort({ name: 1 });
+        const subjects = await Subject.find().sort({ name: 1 }).lean();
         res.status(200).json({
             success: true,
             count: subjects.length,

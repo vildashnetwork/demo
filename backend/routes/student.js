@@ -46,7 +46,11 @@ const sanitizeMatriculePayload = async (studentData = {}, ignoreId = null) => {
 // GET all students
 router.get("/students", async (req, res) => {
     try {
-        const students = await Student.find().sort({ fullName: 1 });
+        const records = await Student.find().sort({ fullName: 1 }).lean();
+        const students = records.map((student) => ({
+            ...student,
+            admissionNumber: student.matricule || ""
+        }));
         res.status(200).json({
             success: true,
             count: students.length,

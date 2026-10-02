@@ -52,10 +52,28 @@ const upsertDocs = async (targetCol, docs) => {
     return written;
 };
 
-// Read the documents changed since `since` (everything when null = first sync)
-const readChanged = (col, since) => {
+// Stream changed documents in bounded batches so a first sync of large
+// collections does not load the whole collection into server memory.
+const syncChangedDocs = async (sourceCol, targetCol, since) => {
     const filter = since ? { updatedAt: { $gt: new Date(since.getTime() - OVERLAP_MS) } } : {};
-    return col.find(filter).toArray();
+    const cursor = sourceCol.find(filter).batchSize(BATCH_SIZE);
+    let batch = [];
+    let written = 0;
+
+    try {
+        for await (const doc of cursor) {
+            batch.push(doc);
+            if (batch.length >= BATCH_SIZE) {
+                written += await upsertDocs(targetCol, batch);
+                batch = [];
+            }
+        }
+        if (batch.length) written += await upsertDocs(targetCol, batch);
+    } finally {
+        await cursor.close().catch(() => { });
+    }
+
+    return written;
 };
 
 // Replay tombstones recorded on `fromConn` against `toConn`
@@ -86,8 +104,9 @@ const syncOneCollection = async (activeConn, otherConn, { name, collection }, sy
     const activeCol = activeConn.db.collection(collection);
     const otherCol = otherConn.db.collection(collection);
     const stateCol = activeConn.db.collection(STATE_COLLECTION);
+    const stateId = `${otherConn.name}:${collection}`;
 
-    const state = await stateCol.findOne({ _id: collection });
+    const state = await stateCol.findOne({ _id: stateId });
     const since = state && state.lastSyncAt ? new Date(state.lastSyncAt) : null;
 
     const result = { collection, model: name, pushed: 0, pulled: 0, deletionsApplied: 0 };
@@ -98,15 +117,15 @@ const syncOneCollection = async (activeConn, otherConn, { name, collection }, sy
     result.deletionsApplied += await applyDeletions(activeConn, otherConn, collection, name);
 
     // 3) push changes made on this side
-    result.pushed = await upsertDocs(otherCol, await readChanged(activeCol, since));
+    result.pushed = await syncChangedDocs(activeCol, otherCol, since);
 
     // 4) pull changes made on the other side
-    result.pulled = await upsertDocs(activeCol, await readChanged(otherCol, since));
+    result.pulled = await syncChangedDocs(otherCol, activeCol, since);
 
     // 5) remember progress (only saved for collections that completed)
     await stateCol.updateOne(
-        { _id: collection },
-        { $set: { model: name, lastSyncAt: syncStart, lastSyncFinishedAt: new Date() } },
+        { _id: stateId },
+        { $set: { model: name, collection, mirrorDatabase: otherConn.name, lastSyncAt: syncStart, lastSyncFinishedAt: new Date() } },
         { upsert: true }
     );
 

@@ -13,7 +13,9 @@ import { execFile } from "child_process";
 import { runSync } from "./syncService.js";
 
 const ONLINE_URI = process.env.MONGOURI;
-const OFFLINE_URI = process.env.MONGOURIOFFLINE || 'mongodb://127.0.0.1:27017/MANFESS_OFFLINE';
+const OFFLINE_URI = process.env.MONGOURIOFFLINE || 'mongodb://127.0.0.1:27017/DEMO_OFFLINE';
+const CONFIGURED_DB_MODE = String(process.env.DB_MODE || '').trim().toLowerCase();
+const PREFER_OFFLINE = CONFIGURED_DB_MODE === 'offline';
 
 const ONLINE_CONNECT_OPTIONS = {
     serverSelectionTimeoutMS: 10000,
@@ -215,6 +217,14 @@ class DbManager {
     // ---- lifecycle -----------------------------------------------------------
 
     async init() {
+        if (PREFER_OFFLINE) {
+            console.log('🏠 Local development database mode: connecting directly to the offline MongoDB mirror...');
+            await this.connectOffline();
+            this.mode = 'offline';
+            console.log('📴 Mode: OFFLINE (local MongoDB)');
+            return this.getStatus();
+        }
+
         if (!ONLINE_URI) {
             throw new Error('MONGOURI environment variable is not defined. Add it to your .env file.');
         }
@@ -251,8 +261,9 @@ class DbManager {
 
         this.startMonitor();
 
-        // Refresh the local mirror right away (also pushes offline changes up)
-        if (this.mode === 'online') await this.runSyncCycle('startup');
+        // Start the initial mirror refresh without delaying the API listener.
+        // The sync remains serialized with periodic and failover sync cycles.
+        if (this.mode === 'online') void this.runSyncCycle('startup');
 
         return this.getStatus();
     }
@@ -274,8 +285,7 @@ class DbManager {
             this.lastSyncError = err.message;
             console.error('❌ Sync failed:', err.message);
             if (/ECONNREFUSED|ENOTFOUND|ServerSelection/i.test(err.message || '')) {
-                this.offlineAvailable = false;
-                console.warn('⚠️ Local MongoDB unreachable — sync disabled (online-only mode).');
+                console.warn('⚠️ Local MongoDB temporarily unreachable — sync will retry on the next cycle.');
             }
             return null;
         } finally {

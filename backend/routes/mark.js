@@ -1,15 +1,26 @@
 import express from "express";
 import mongoose from "mongoose";
 import Mark from "../models/Mark.js"; // Adjust the path as needed
+import Subject from "../models/Subject.js";
 
 const router = express.Router();
 
 // ==================== GET ROUTES ====================
 
-// GET all marks
+// GET marks, optionally scoped to the selected class/student/subject/year.
 router.get("/marks", async (req, res) => {
     try {
-        const marks = await Mark.find().sort({ createdAt: -1 });
+        const { classId, studentId, subjectId, academicyear, academicYear, sequence } = req.query;
+        const filter = {};
+        if (classId) filter.classId = String(classId);
+        if (studentId) filter.studentId = String(studentId);
+        if (subjectId) filter.subjectId = String(subjectId);
+        if (academicyear || academicYear) filter.academicyear = String(academicyear || academicYear);
+        if (sequence) filter.sequence = String(sequence);
+
+        const marks = await Mark.find(filter)
+            .sort({ createdAt: -1 })
+            .lean();
         res.status(200).json({
             success: true,
             count: marks.length,
@@ -20,6 +31,68 @@ router.get("/marks", async (req, res) => {
             success: false,
             message: "Error fetching marks",
             error: error.message
+        });
+    }
+});
+
+router.get("/marks/dashboard-summary", async (req, res) => {
+    try {
+        const [marks, subjects] = await Promise.all([
+            Mark.find().select("studentId subjectId classId sequence score").lean(),
+            Subject.find().select("_id name code coefficient").lean(),
+        ]);
+        const subjectMap = new Map(subjects.map((subject) => [String(subject._id), subject]));
+        const studentTotals = new Map();
+        const subjectTotals = new Map();
+        const sequenceTotals = new Map();
+
+        for (const mark of marks) {
+            const subject = subjectMap.get(String(mark.subjectId));
+            if (!subject) continue;
+
+            const coefficient = Number(subject.coefficient) || 1;
+            const studentTotal = studentTotals.get(mark.studentId) || { weightedScore: 0, coefficientTotal: 0 };
+            studentTotal.weightedScore += mark.score * coefficient;
+            studentTotal.coefficientTotal += coefficient;
+            studentTotals.set(mark.studentId, studentTotal);
+
+            const subjectTotal = subjectTotals.get(String(subject._id)) || { total: 0, count: 0 };
+            subjectTotal.total += mark.score;
+            subjectTotal.count += 1;
+            subjectTotals.set(String(subject._id), subjectTotal);
+
+            const sequenceTotal = sequenceTotals.get(mark.sequence) || { total: 0, count: 0 };
+            sequenceTotal.total += mark.score;
+            sequenceTotal.count += 1;
+            sequenceTotals.set(mark.sequence, sequenceTotal);
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                studentAverages: Array.from(studentTotals, ([studentId, total]) => ({
+                    id: studentId,
+                    avg: total.coefficientTotal ? total.weightedScore / total.coefficientTotal : 0,
+                })),
+                subjectAverages: subjects.flatMap((subject) => {
+                    const total = subjectTotals.get(String(subject._id));
+                    return total ? [{
+                        subjectId: String(subject._id),
+                        average: total.total / total.count,
+                        markCount: total.count,
+                    }] : [];
+                }),
+                sequenceAverages: Array.from(sequenceTotals, ([sequence, total]) => ({
+                    sequence,
+                    average: total.count ? total.total / total.count : 0,
+                })),
+            },
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Error generating dashboard mark summary",
+            error: error.message,
         });
     }
 });
