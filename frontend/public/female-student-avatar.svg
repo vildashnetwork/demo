@@ -1,0 +1,16 @@
+<svg 
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300" role="img" aria-labelledby="title">
+    <title id="title">Female student portrait placeholder</title>
+    <rect width="240" height="300" rx="18" fill="#f2efe4"/>
+    <path d="M56 126c0-61 22-95 65-95 45 0 67 35 67 95v78H56Z" fill="#25221f"/>
+    <circle cx="120" cy="112" r="54" fill="#8d583d"/>
+    <path d="M66 105c7-47 26-70 58-70 32 0 51 19 59 57-15-13-29-18-45-17-27 2-43 15-72 30Z" fill="#25221f"/>
+    <path d="M57 298c2-72 24-111 63-111h1c41 0 62 39 64 111Z" fill="#0b5137"/>
+    <path d="M91 188h58l-29 38Z" fill="#d2ad4b"/>
+    <path d="M110 201h20l-10 20Z" fill="#fff"/>
+    <circle cx="99" cy="116" r="4" fill="#24201e"/>
+    <circle cx="141" cy="116" r="4" fill="#24201e"/>
+    <path d="M104 146c9 7 23 7 32 0" fill="none" stroke="#633c2d" stroke-width="4" stroke-linecap="round"/>
+    <path d="M22 270h196" stroke="#d2ad4b" stroke-width="4"/>
+    <text x="120" y="286" fill="#0b5137" font-family="Arial,sans-serif" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1.5">BCHS DOUALA</text>
+</svg>

@@ -18,14 +18,34 @@ const schoolClassSchema = new mongoose.Schema({
             "Form 4",
             "Form 5",
             "Lower 6th",
-            "Upper 6th"
+            "Upper 6th",
+            "6ème",
+            "5ème",
+            "4ème",
+            "3ème",
+            "Seconde",
+            "Première",
+            "Terminale"
         ],
         required: [true, "Class name is required"],
         trim: true
     },
     department: {
         type: String,
-        enum: ["General", "Science", "Arts", "Commercial"],
+        enum: [
+            "General",
+            "Science",
+            "Arts",
+            "Commercial",
+            "Electrical & Electronics",
+            "Civil Engineering & Woodwork",
+            "Mechanical",
+            "Home Economics & Social",
+            "Accounting",
+            "Marketing & Sales",
+            "Secretarial Administration & Communication",
+            "Home Economics & Social Care"
+        ],
         required: [true, "Department is required"],
         trim: true
     },
@@ -123,7 +143,14 @@ schoolClassSchema.virtual('level').get(function () {
         "Form 5": 5,
         "Lower 6th": 6,
         "Upper 6th": 7,
-        "Graduated": 8
+        "Graduated": 8,
+        "6ème": 1,
+        "5ème": 2,
+        "4ème": 3,
+        "3ème": 4,
+        "Seconde": 5,
+        "Première": 6,
+        "Terminale": 7
     };
     return levels[this.className] || 0;
 });
@@ -139,8 +166,8 @@ schoolClassSchema.index({ isActive: 1 });
 schoolClassSchema.pre('save', async function () {
     // Auto-set cycle based on className if not provided
     if (!this.cycle) {
-        const lowerClasses = ["Form 1", "Form 2", "Form 3", "Form 4"];
-        const upperClasses = ["Form 5", "Lower 6th", "Upper 6th"];
+        const lowerClasses = ["Form 1", "Form 2", "Form 3", "Form 4", "6ème", "5ème", "4ème", "3ème"];
+        const upperClasses = ["Form 5", "Lower 6th", "Upper 6th", "Seconde", "Première", "Terminale"];
 
         if (lowerClasses.includes(this.className)) {
             this.cycle = "1st Cycle";

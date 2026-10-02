@@ -1,0 +1,11 @@
+<svg 
+    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-labelledby="title">
+    <title id="title">BCHS Douala school crest</title>
+    <circle cx="100" cy="100" r="94" fill="#0b5137" stroke="#d2ad4b" stroke-width="8"/>
+    <circle cx="100" cy="100" r="79" fill="none" stroke="#f4e5ad" stroke-width="2"/>
+    <path d="M47 116V75c17-8 35-5 53 7 18-12 36-15 53-7v41c-17-8-35-5-53 7-18-12-36-15-53-7Z" fill="#fff" stroke="#d2ad4b" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M100 82v41M58 83c12-4 24-2 34 4m50-4c-12-4-24-2-34 4" fill="none" stroke="#0b5137" stroke-width="4" stroke-linecap="round"/>
+    <path d="m100 32 5 12 13 1-10 8 3 13-11-7-11 7 3-13-10-8 13-1Z" fill="#d2ad4b"/>
+    <text x="100" y="157" fill="#f4e5ad" font-family="Arial,sans-serif" font-size="20" font-weight="800" text-anchor="middle" letter-spacing="2">BCHS</text>
+    <text x="100" y="174" fill="#fff" font-family="Arial,sans-serif" font-size="8" font-weight="700" text-anchor="middle" letter-spacing="1.6">DOUALA</text>
+</svg>

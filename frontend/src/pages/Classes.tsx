@@ -984,8 +984,17 @@ function ClassDialog({
   const set = <K extends keyof SchoolClass>(k: K, v: SchoolClass[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const classNames = ["Beginers1", "Beginers2", "Olevel 3", "Olevel 4", "Olevel 5", "Alevel", "Graduated"];
-  const departments = ["General", "Science", "Arts", "Commercial"];
+  const classNames = [
+    "Beginers1", "Beginers2", "Olevel 3", "Olevel 4", "Olevel 5", "Alevel", "Graduated",
+    "Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower 6th", "Upper 6th",
+    "6ème", "5ème", "4ème", "3ème", "Seconde", "Première", "Terminale"
+  ];
+  const departments = [
+    "General", "Science", "Arts", "Commercial", "Electrical & Electronics",
+    "Civil Engineering & Woodwork", "Mechanical", "Home Economics & Social",
+    "Accounting", "Marketing & Sales", "Secretarial Administration & Communication",
+    "Home Economics & Social Care"
+  ];
   const cycles = ["1st Cycle", "2nd Cycle"];
   const academicYears = ["2026-2027", "2027-2028", "2028-2029"];
 

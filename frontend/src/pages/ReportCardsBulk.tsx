@@ -56,6 +56,7 @@ export function ReportCardsBulk() {
   const [classes, setClasses] = useState<any[]>([]);
   const [marks, setMarks] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [attendanceSummaries, setAttendanceSummaries] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
 
@@ -106,6 +107,33 @@ export function ReportCardsBulk() {
   const cls = classes.find((c) => c.id === classId);
   const term = TERMS.find((t) => t.id === termId) || TERMS[0];
   const sequences = term.sequences;
+
+  useEffect(() => {
+    if (!cls || !classId) {
+      setAttendanceSummaries({});
+      return;
+    }
+
+    let cancelled = false;
+    axios.get(`${API_BASE}/attendance/students/summary`, {
+      params: {
+        classId,
+        academicYear: cls.acedemicYear || cls.academicYear || "",
+        term: termId,
+      },
+    }).then((response) => {
+      if (!cancelled && response.data.success) {
+        setAttendanceSummaries(Object.fromEntries(
+          response.data.data.map((summary: any) => [summary.studentId, summary]),
+        ));
+      }
+    }).catch((error) => {
+      console.error("Unable to load report-card attendance", error);
+      if (!cancelled) setAttendanceSummaries({});
+    });
+
+    return () => { cancelled = true; };
+  }, [classId, cls?.acedemicYear, cls?.academicYear, termId]);
 
   // Map teacherId -> teacher name for quick lookup
   const teachersMap = useMemo(() => {
@@ -204,11 +232,22 @@ export function ReportCardsBulk() {
   const rankedReports = useMemo(() => {
     const avgValues = reports.map((d) => ({ id: d.student.id, avg: d.overallAverage }));
     const ranks = rankWithTies(avgValues);
-    return reports.map((d) => ({
-      ...d,
-      rank: ranks[d.student.id] || 0,
-    }));
-  }, [reports]);
+    return reports
+      .map((d) => ({
+        ...d,
+        attendance: attendanceSummaries[d.student.id] || {
+          schoolDays: 0,
+          sessions: 0,
+          present: 0,
+          absent: 0,
+          late: 0,
+          excused: 0,
+          attendanceRate: 0,
+        },
+        rank: ranks[d.student.id] || 0,
+      }))
+      .sort((first, second) => first.rank - second.rank || first.student.fullName.localeCompare(second.student.fullName));
+  }, [reports, attendanceSummaries]);
 
   const downloadAll = async () => {
     const el = document.getElementById("bulk-report-cards");
@@ -290,7 +329,7 @@ export function ReportCardsBulk() {
       <div id="bulk-report-cards" className="space-y-6">
         {rankedReports.map((data, i) => (
           <div key={data.student.id} data-report-card className={i > 0 ? "report-page-break" : ""} style={i > 0 ? { pageBreakBefore: "always" } : undefined}>
-            <ReportCardCard data={data} cls={cls} term={term} sequences={sequences} />
+            <ReportCardCard data={data} cls={cls} term={term} sequences={sequences} classSize={rankedReports.length} />
           </div>
         ))}
         {rankedReports.length === 0 && (
@@ -312,57 +351,76 @@ export function ReportCardsBulk() {
   );
 }
 
-function ReportCardCard({ data, cls, term, sequences }: { data: any; cls: any; term: any; sequences: string[] }) {
+function ReportCardCard({ data, cls, term, sequences, classSize }: { data: any; cls: any; term: any; sequences: string[]; classSize: number }) {
   const avg = data.overallAverage;
   const status = avg >= 10 ? "Promoted" : "Repeat";
-  const statusColor = avg >= 10 ? "text-brand" : "text-red-600";
   const gradeInfo = gradeFor(avg);
+  const matricule = data.student.matricule || data.student.admissionNumber || "Not assigned";
+  const defaultPortrait = data.student.gender === "female" ? "/female-student-avatar.svg" : "/male-student-avatar.svg";
+  const portraitUrl = data.student.photoUrl || defaultPortrait;
 
   return (
-    <div className="bg-white border border-stone-200 rounded-2xl max-w-4xl mx-auto print:border-0 print:shadow-none print:rounded-none report-card-page">
-      <div className="p-8 print:p-6">
+    <div className="bg-white border border-[#d9e5dc] border-t-8 border-t-[#0b5137] max-w-4xl mx-auto print:border-0 print:shadow-none report-card-page">
+      <div className="p-6 print:p-5">
         {/* Cameroon official header */}
-        <div className="grid grid-cols-3 gap-4 text-center text-[10px] font-bold uppercase tracking-wider pb-4 border-b-2 border-[#121212]">
-          <div>
+        <div className="grid grid-cols-3 gap-4 items-center text-center text-[10px] font-bold uppercase tracking-wider pb-4 border-b-[3px] border-[#d2ad4b]">
+          <div className="text-left text-[#0b5137] leading-relaxed">
             République du Cameroun<br />
-            <span className="font-normal italic">Paix — Travail — Patrie</span><br />
+            <span className="font-normal italic text-stone-500">Paix — Travail — Patrie</span><br />
             Ministère des Enseignements Secondaires
           </div>
           <div className="flex flex-col items-center justify-center">
-            <div className="size-12 bg-brand rounded-xl grid place-items-center mb-1">
-              <GraduationCap className="size-6 text-white" />
+            <div className="size-12 bg-[#0b5137] border-[3px] border-[#d2ad4b] rounded-full grid place-items-center mb-1 text-white text-xs font-black">
+              BCHS
             </div>
-            <div className="font-display text-base font-extrabold tracking-tight">BCHS DOUALA</div>
-            <div className="text-[9px] text-black/60 font-normal">P.O. Box 1234, Yaoundé · MINESEC accredited</div>
+            <div className="font-display text-lg font-extrabold tracking-tight text-[#0b5137]">BCHS DOUALA</div>
+            <div className="text-[9px] text-stone-500 font-normal normal-case">Excellence · Discipline · Service</div>
           </div>
-          <div>
+          <div className="text-right text-[#0b5137] leading-relaxed">
             Republic of Cameroon<br />
-            <span className="font-normal italic">Peace — Work — Fatherland</span><br />
+            <span className="font-normal italic text-stone-500">Peace — Work — Fatherland</span><br />
             Ministry of Secondary Education
           </div>
         </div>
 
-        <div className="text-center my-4">
-          <div className="inline-block px-6 py-1.5 bg-[#121212] text-white text-xs font-bold uppercase tracking-widest rounded-full">
-            {term.label} · Academic Year {cls.acedemicYear || "2024 / 2025"}
+        <div className="my-4 flex items-center justify-between gap-3 border-l-4 border-[#0b5137] bg-[#f1f6f1] px-4 py-2.5">
+          <div className="font-display text-lg font-extrabold uppercase text-[#0b5137]">{term.label} Report</div>
+          <div className="text-right text-[10px] font-bold text-stone-500">ACADEMIC YEAR<br /><span className="text-sm text-stone-800">{cls.acedemicYear || "—"}</span></div>
+        </div>
+
+        <div className="mb-4 grid grid-cols-[110px_1fr] gap-4 rounded-lg border border-[#d9e5dc] p-3">
+          <div className="relative h-[138px] w-[110px] overflow-hidden rounded-md border-2 border-[#d2ad4b] bg-[#e7f0e8] grid place-items-center text-3xl font-black text-[#0b5137]">
+            <img
+              src={portraitUrl}
+              alt={`${data.student.gender === "female" ? "Female" : "Male"} student portrait`}
+              className="absolute inset-0 size-full object-cover"
+              crossOrigin="anonymous"
+              onError={(event) => {
+                if (event.currentTarget.src.endsWith(defaultPortrait)) event.currentTarget.src = "/bchs-logo.svg";
+                else event.currentTarget.src = defaultPortrait;
+              }}
+            />
+          </div>
+          <div>
+            <h2 className="mb-2 font-display text-xl font-extrabold text-[#0b5137]">{data.student.fullName}</h2>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] sm:grid-cols-3">
+              <Info label="Matricule" value={matricule} />
+              <Info label="Class" value={cls.className} />
+              <Info label="Department" value={data.student.department || cls.department || "—"} />
+              <Info label="Gender" value={data.student.gender === "male" ? "Male" : "Female"} />
+              <Info label="Date of Birth" value={data.student.dob || "—"} />
+              <Info label="Position" value={data.rank ? `${ordinal(data.rank)} / ${classSize}` : "—"} />
+              <Info label="Parent / Guardian" value={data.student.parentName || "—"} />
+              <Info label="Contact" value={data.student.parentPhone || "—"} />
+              <Info label="Class Size" value={`${classSize} learners`} />
+              <div className="col-span-2 sm:col-span-3"><Info label="Address" value={data.student.address || "—"} /></div>
+            </div>
           </div>
         </div>
 
-        {/* Student info */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-          <Info label="Student" value={data.student.fullName} />
-          <Info label="Admission №" value={data.student.admissionNumber || "N/A"} />
-          <Info label="Class" value={cls.className} />
-          <Info label="Section" value={data.student.department} />
-          <Info label="Sex" value={data.student.gender === "male" ? "Male" : "Female"} />
-          <Info label="Date of Birth" value={data.student.dob} />
-          <Info label="Class Size" value={String(data.subjectScores.length > 0 ? data.subjectScores[0].classStudents?.length || 0 : 0)} />
-          <Info label="Position" value={data.rank ? `${ordinal(data.rank)}` : "—"} />
-        </div>
-
         {/* Marks table */}
-        <table className="w-full text-[11px] mt-4 border border-[#121212]">
-          <thead className="bg-[#121212] text-white">
+        <table className="w-full text-[11px] mt-4 border border-[#0b5137]">
+          <thead className="bg-[#0b5137] text-white">
             <tr>
               <th className="px-2 py-1.5 text-left border border-[#121212]">Subject</th>
               {sequences.map((seq) => (
@@ -423,11 +481,16 @@ function ReportCardCard({ data, cls, term, sequences }: { data: any; cls: any; t
         </div>
 
         {/* Conduct */}
-        <div className="grid sm:grid-cols-4 gap-2 mt-3 text-xs">
-          <Info label="Conduct" value="Good" />
-          <Info label="Discipline" value="Satisfactory" />
-          <Info label="Absences" value="0" />
-          <Info label="Lateness" value="0" />
+        <div className="mt-3 rounded-lg border border-[#d9e5dc] bg-[#f6f9f6] p-3">
+          <div className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-[#0b5137]">Attendance · {term.label}</div>
+          <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
+            <Summary label="Present" value={`${data.attendance.present} days`} />
+            <Summary label="Absent" value={`${data.attendance.absent} days`} />
+            <Summary label="Late" value={`${data.attendance.late} days`} />
+            <Summary label="Excused" value={`${data.attendance.excused} days`} />
+            <Summary label="Attendance rate" value={`${data.attendance.attendanceRate}%`} highlight />
+          </div>
+          <p className="mt-2 text-[9px] text-stone-500">{data.attendance.schoolDays} recorded school days · {data.attendance.sessions} attendance sessions</p>
         </div>
 
         {/* Remarks */}
@@ -464,8 +527,8 @@ function ReportCardCard({ data, cls, term, sequences }: { data: any; cls: any; t
           ))}
         </div>
 
-        <div className="mt-6 pt-3 border-t border-stone-300 flex items-center justify-between text-[10px] text-black/40">
-          <div>Issued by BCHS DOUALA · {new Date().toLocaleDateString()}</div>
+        <div className="mt-6 pt-3 border-t-2 border-[#d2ad4b] flex items-center justify-between text-[10px] text-stone-500">
+          <div className="font-semibold text-[#0b5137]">Issued by BCHS DOUALA · {new Date().toLocaleDateString()}</div>
           <div className="font-mono">VERIF#{data.student.id.toUpperCase()}-{term.id.toUpperCase()}</div>
         </div>
       </div>
