@@ -434,13 +434,24 @@ function TeacherDialog({
     set("classIds", updated);
   };
 
+  const changeSection = (section: Teacher["section"]) => {
+    setForm((current) => ({
+      ...current,
+      section,
+      subjectIds: current.subjectIds.filter((id) => subjects.find((subject) => subject.id === id)?.section === section),
+      classIds: current.classIds.filter((id) => classes.find((schoolClass) => schoolClass.id === id)?.schoolSection === section),
+    }));
+  };
+
   const filteredSubjects = subjects.filter(s =>
-    s.name.toLowerCase().includes(subjectSearch.toLowerCase()) ||
-    s.code.toLowerCase().includes(subjectSearch.toLowerCase())
+    s.section === form.section && (
+      s.name.toLowerCase().includes(subjectSearch.toLowerCase()) ||
+      s.code.toLowerCase().includes(subjectSearch.toLowerCase())
+    )
   );
 
   const filteredClasses = classes.filter(c =>
-    c.className.toLowerCase().includes(classSearch.toLowerCase())
+    c.schoolSection === form.section && c.className.toLowerCase().includes(classSearch.toLowerCase())
   );
 
   const handleSave = async () => {
@@ -525,7 +536,7 @@ function TeacherDialog({
             {!isEditing && <h4 className="font-display font-bold">Teacher profile</h4>}
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Section*">
-                <select value={form.section || "englophone"} onChange={(e) => set("section", e.target.value as "englophone" | "francophone")} className={inputCls}>
+                <select value={form.section || "englophone"} onChange={(e) => changeSection(e.target.value as Teacher["section"])} className={inputCls}>
                   <option value="englophone">Anglophone</option>
                   <option value="francophone">Francophone</option>
                 </select>

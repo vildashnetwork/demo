@@ -665,7 +665,7 @@ export function StudentsPage() {
             id: "st_" + Math.random().toString(36).slice(2, 9),
             fullName: "",
             gender: "male",
-            section: "englophone",
+            section: classes[0]?.schoolSection || "englophone",
             dob: new Date().toISOString().slice(0, 10),
             classId: classes[0]?.id || "",
             department: classes[0]?.department || "Science",
@@ -726,6 +726,7 @@ function StudentDialog({
     setForm((current) => ({
       ...current,
       classId,
+      section: classObj?.schoolSection || current.section,
       department: classObj?.department || current.department,
       tuitionFee: classObj?.tuitionFee || 0,
       tuitionInstallments: classObj?.tuitionInstallments || 1,
@@ -733,6 +734,18 @@ function StudentDialog({
       registrationFeeAmount: classObj?.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
       feesDue: Math.max(0, totalFee - (Number(current.feesPaid) || 0)),
     }));
+  };
+
+  const handleSectionChange = (section: Student["section"]) => {
+    setForm((current) => {
+      const matchingClass = classes.find((schoolClass) => schoolClass.id === current.classId && schoolClass.schoolSection === section);
+      return {
+        ...current,
+        section,
+        classId: matchingClass ? current.classId : "",
+        department: matchingClass?.department || current.department,
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -830,7 +843,7 @@ function StudentDialog({
             {!isEditing && <h4 className="font-display font-bold">Student details</h4>}
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Section*">
-                <select value={form.section || "englophone"} onChange={(e) => set("section", e.target.value as "englophone" | "francophone")} className={inputCls}>
+                <select value={form.section || "englophone"} onChange={(e) => handleSectionChange(e.target.value as Student["section"])} className={inputCls}>
                   <option value="englophone">Anglophone</option>
                   <option value="francophone">Francophone</option>
                 </select>
@@ -857,7 +870,7 @@ function StudentDialog({
             <Field label="Class*">
               <select value={form.classId} onChange={(e) => handleClassChange(e.target.value)} className={inputCls} required>
                 <option value="">Select class</option>
-                {classes.map((schoolClass) => (
+                {classes.filter((schoolClass) => schoolClass.schoolSection === form.section).map((schoolClass) => (
                   <option key={schoolClass.id} value={schoolClass.id}>
                     {schoolClass.className} - {schoolClass.department} · {schoolClass.tuitionFee.toLocaleString()} XAF
                   </option>

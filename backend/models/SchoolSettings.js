@@ -98,8 +98,8 @@ const schoolSettingsSchema = new mongoose.Schema({
     timestamps: true,
   });
 
-// Ensure only one settings document per academic year
-schoolSettingsSchema.index({ academicYear: 1 }, { unique: true });
+// Keep one settings document per stream and academic year
+schoolSettingsSchema.index({ academicYear: 1, section: 1 }, { unique: true });
 
 const SchoolSettings = mongoose.model("SchoolSettings", schoolSettingsSchema);
 

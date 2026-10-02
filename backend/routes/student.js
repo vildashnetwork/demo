@@ -363,10 +363,6 @@ router.post("/students", async (req, res) => {
     try {
         const studentData = req.body;
 
-        if (!studentData.section) {
-            studentData.section = 'englophone';
-        }
-
         const schoolClass = await SchoolClass.findById(studentData.classId);
         if (!schoolClass) {
             return res.status(400).json({ success: false, message: "Select a valid class before enrolling the student" });

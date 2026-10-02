@@ -320,7 +320,8 @@ router.put("/classes/:id", async (req, res) => {
                 _id: { $ne: id },
                 className: classData.className || existing.className,
                 department: classData.department || existing.department,
-                acedemicYear: classData.acedemicYear || existing.acedemicYear
+                acedemicYear: classData.acedemicYear || existing.acedemicYear,
+                schoolSection: classData.schoolSection || existing.schoolSection || 'englophone'
             });
 
             if (duplicate) {
@@ -403,7 +404,8 @@ router.patch("/classes/:id", async (req, res) => {
                 _id: { $ne: id },
                 className: classData.className || existing.className,
                 department: classData.department || existing.department,
-                acedemicYear: classData.acedemicYear || existing.acedemicYear
+                acedemicYear: classData.acedemicYear || existing.acedemicYear,
+                schoolSection: classData.schoolSection || existing.schoolSection || 'englophone'
             });
 
             if (duplicate) {

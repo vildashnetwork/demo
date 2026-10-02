@@ -38,6 +38,7 @@ interface SchoolClass {
 interface Teacher {
   id: string;
   fullName: string;
+  section: "englophone" | "francophone";
   subjectIds: string[];
 }
 
@@ -186,6 +187,7 @@ export function ClassesPage() {
           .map((user: any) => ({
             id: user._id,
             fullName: user.name,
+            section: user.section || "englophone",
             subjectIds: user.subjectIds || []
           }));
         setTeachers(mappedTeachers);
@@ -774,6 +776,19 @@ function SubjectDialog({
   const set = <K extends keyof Subject>(k: K, v: Subject[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  const changeSection = (section: Subject["section"]) => {
+    setForm((current) => ({
+      ...current,
+      section,
+      classIds: current.classIds.filter((id) => classes.find((schoolClass) => schoolClass.id === id)?.schoolSection === section),
+      teacherIds: current.teacherIds.filter((id) => teachers.find((teacher) => teacher.id === id)?.section === section),
+      periodsByClass: Object.fromEntries(Object.entries(current.periodsByClass).filter(([id]) => classes.find((schoolClass) => schoolClass.id === id)?.schoolSection === section)),
+    }));
+  };
+
+  const sectionClasses = classes.filter((schoolClass) => schoolClass.schoolSection === form.section);
+  const sectionTeachers = teachers.filter((teacher) => teacher.section === form.section);
+
   const toggleClass = (id: string) => {
     if (form.classIds.includes(id)) {
       set("classIds", form.classIds.filter((x) => x !== id));
@@ -841,7 +856,7 @@ function SubjectDialog({
           <Field label="Section*">
             <select
               value={form.section || "englophone"}
-              onChange={(e) => set("section", e.target.value as "englophone" | "francophone")}
+              onChange={(e) => changeSection(e.target.value as Subject["section"])}
               className={inputCls}
             >
               <option value="englophone">Anglophone</option>
@@ -891,7 +906,7 @@ function SubjectDialog({
         <div className="mt-4">
           <div className="text-[10px] uppercase tracking-widest font-bold text-black/50 mb-2">Assigned to Classes</div>
           <div className="flex flex-wrap gap-2">
-            {classes.map((c) => (
+            {sectionClasses.map((c) => (
               <button
                 key={c.id}
                 type="button"
@@ -904,7 +919,7 @@ function SubjectDialog({
                 {c.className + " " + c.department}
               </button>
             ))}
-            {classes.length === 0 && (
+            {sectionClasses.length === 0 && (
               <span className="text-xs text-black/40">No classes available</span>
             )}
           </div>
@@ -912,7 +927,7 @@ function SubjectDialog({
           {form.classIds.length > 0 && (
             <div className="mt-3 space-y-2">
               <div className="text-[10px] uppercase tracking-widest font-bold text-black/50">Periods per week by class</div>
-              {classes
+              {sectionClasses
                 .filter((c) => form.classIds.includes(c.id))
                 .map((c) => (
                   <div key={c.id} className="flex items-center justify-between gap-3 bg-stone-50 rounded-lg px-3 py-2">
@@ -938,7 +953,7 @@ function SubjectDialog({
         <div className="mt-4">
           <div className="text-[10px] uppercase tracking-widest font-bold text-black/50 mb-2">Assigned Teachers</div>
           <div className="flex flex-wrap gap-2">
-            {teachers.map((t) => (
+            {sectionTeachers.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -951,7 +966,7 @@ function SubjectDialog({
                 {t.fullName}
               </button>
             ))}
-            {teachers.length === 0 && (
+            {sectionTeachers.length === 0 && (
               <span className="text-xs text-black/40">No teachers available</span>
             )}
           </div>
@@ -1009,6 +1024,7 @@ function ClassDialog({
   ];
   const cycles = ["1st Cycle", "2nd Cycle"];
   const academicYears = ["2026-2027", "2027-2028", "2028-2029"];
+  const sectionTeachers = teachers.filter((teacher) => teacher.section === form.schoolSection);
 
   const handleSave = async () => {
     // Validate before saving
@@ -1128,7 +1144,14 @@ function ClassDialog({
           <Field label="School Section*">
             <select
               value={form.schoolSection || "englophone"}
-              onChange={(e) => set("schoolSection", e.target.value as "englophone" | "francophone")}
+              onChange={(e) => {
+                const schoolSection = e.target.value as SchoolClass["schoolSection"];
+                setForm((current) => ({
+                  ...current,
+                  schoolSection,
+                  classMasterId: teachers.find((teacher) => teacher.id === current.classMasterId)?.section === schoolSection ? current.classMasterId : "",
+                }));
+              }}
               className={inputCls}
               required
             >
@@ -1145,7 +1168,7 @@ function ClassDialog({
               required
             >
               <option value="">Select class master</option>
-              {teachers.map((t) => (
+              {sectionTeachers.map((t) => (
                 <option key={t.id} value={t.id}>{t.fullName}</option>
               ))}
             </select>

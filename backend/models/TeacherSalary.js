@@ -7,6 +7,13 @@ const TeacherSalarySchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  section: {
+    type: String,
+    enum: ['englophone', 'francophone'],
+    default: 'englophone',
+    required: true,
+    trim: true
+  },
   month: {
     type: String,
     required: true,
@@ -138,6 +145,7 @@ TeacherSalarySchema.index(
 // Index for faster queries
 TeacherSalarySchema.index({ teacherId: 1, year: 1 });
 TeacherSalarySchema.index({ status: 1 });
+TeacherSalarySchema.index({ section: 1, academicYear: 1, term: 1 });
 
 // Pre-save hook to calculate net salary
 TeacherSalarySchema.pre('save', function (next) {
