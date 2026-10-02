@@ -4,6 +4,7 @@ import { FileText, ArrowRight, Search, Printer, FileSpreadsheet, Calendar, Award
 import { toast } from "sonner";
 import axios from "axios";
 import { currentUser } from "@/lib/auth";
+import { getStoredSchoolSection } from "@/lib/schoolSystem";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas-pro";
 
@@ -167,10 +168,11 @@ export function ReportCardsIndex() {
     try {
       setLoading(true);
       setLoadError("");
+      const activeSection = getStoredSchoolSection();
       const [subjectsRes, classesRes, usersRes] = await Promise.all([
-        axios.get(`${API_BASE}/subjects`),
-        axios.get(`${API_BASE}/classes`),
-        axios.get(`${API_BASE}/users`),
+        axios.get(`${API_BASE}/subjects`, { params: { section: activeSection } }),
+        axios.get(`${API_BASE}/classes`, { params: { section: activeSection } }),
+        axios.get(`${API_BASE}/users`, { params: { section: activeSection } }),
       ]);
 
       if (subjectsRes.data.success) {

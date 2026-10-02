@@ -13,8 +13,8 @@ const router = express.Router();
 // GET marks, optionally scoped to the selected class/student/subject/year.
 router.get("/marks", async (req, res) => {
     try {
-        const { classId, studentId, subjectId, academicyear, academicYear, sequence } = req.query;
-        const filter = {};
+        const { classId, studentId, subjectId, academicyear, academicYear, sequence, section } = req.query;
+        const filter = section ? { section } : {};
         if (classId) filter.classId = String(classId);
         if (studentId) filter.studentId = String(studentId);
         if (subjectId) filter.subjectId = String(subjectId);
@@ -40,8 +40,9 @@ router.get("/marks", async (req, res) => {
 
 router.get("/marks/dashboard-summary", async (req, res) => {
     try {
+        const section = ["englophone", "francophone"].includes(String(req.query.section)) ? String(req.query.section) : "englophone";
         const [aggregateRows, subjects, classes, students, totalTeachers] = await Promise.all([
-            Mark.aggregate([{
+            Mark.aggregate([{ $match: { section } }, {
                 $facet: {
                     studentSubjects: [{
                         $group: {
@@ -66,10 +67,10 @@ router.get("/marks/dashboard-summary", async (req, res) => {
                     }],
                 },
             }]).allowDiskUse(true),
-            Subject.find().select("_id name code coefficient").lean(),
-            SchoolClass.find().select("_id className department").lean(),
-            Student.find().select("_id fullName matricule classId department feesPaid feesDue").lean(),
-            User.countDocuments({ role: "teacher" }),
+            Subject.find({ section }).select("_id name code coefficient").lean(),
+            SchoolClass.find({ schoolSection: section }).select("_id className department").lean(),
+            Student.find({ section }).select("_id fullName matricule classId department feesPaid feesDue").lean(),
+            User.countDocuments({ role: "teacher", section }),
         ]);
 
         const aggregate = aggregateRows[0] || { studentSubjects: [], subjects: [], sequences: [] };
@@ -221,7 +222,7 @@ router.get("/marks/:id", async (req, res) => {
             });
         }
 
-        const mark = await Mark.findById(id);
+        const mark = await Mark.findOne({ _id: id, ...(req.query.section ? { section: req.query.section } : {}) });
 
         if (!mark) {
             return res.status(404).json({

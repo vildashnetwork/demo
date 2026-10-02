@@ -13,7 +13,7 @@ const router = express.Router();
  * Validate + normalize one attendance record coming from the API.
  * @returns {{record?: object, error?: string}}
  */
-const normalizeRecord = (raw = {}) => {
+const normalizeRecord = (raw = {}, activeSection) => {
     const studentId = raw.studentId ? String(raw.studentId).trim() : "";
     const classId = raw.classId ? String(raw.classId).trim() : "";
     if (!studentId) return { error: "studentId is required" };
@@ -42,6 +42,7 @@ const normalizeRecord = (raw = {}) => {
             academicYear: (raw.academicYear && String(raw.academicYear).trim())
                 || StudentAttendance.academicYearForDate(date),
             term,
+            section: activeSection || raw.section || "englophone",
             recordedBy: raw.recordedBy ? String(raw.recordedBy).trim() : "",
             notes: raw.notes ? String(raw.notes).trim() : ""
         }
@@ -59,6 +60,7 @@ const upsertRecords = async (records) => {
                 $set: {
                     classId: record.classId,
                     status: record.status,
+                    section: record.section,
                     academicYear: record.academicYear,
                     term: record.term,
                     recordedBy: record.recordedBy,
@@ -89,7 +91,7 @@ const saveAttendance = async (req, res) => {
         const records = [];
         const errors = [];
         incoming.forEach((raw, index) => {
-            const { record, error } = normalizeRecord(raw);
+            const { record, error } = normalizeRecord(raw, req.get("x-school-section"));
             if (error) errors.push({ index, error });
             else records.push(record);
         });
@@ -120,7 +122,7 @@ router.post("/attendance/students/bulk", saveAttendance);
 // term, date, from, to, status, period, limit)
 router.get("/attendance/students", async (req, res) => {
     try {
-        const { classId, studentId, academicYear, term, date, from, to, status, period, limit } = req.query;
+        const { classId, studentId, academicYear, term, date, from, to, status, period, limit, section } = req.query;
 
         const filters = {
             classId,
@@ -128,7 +130,8 @@ router.get("/attendance/students", async (req, res) => {
             term,
             status,
             period: period ? String(period).toLowerCase() : undefined,
-            studentIds: studentId ? String(studentId).split(",") : undefined
+            studentIds: studentId ? String(studentId).split(",") : undefined,
+            section,
         };
 
         if (date) {
@@ -158,7 +161,7 @@ router.get("/attendance/students", async (req, res) => {
 // (studentIds=a,b,c). Used by the report card screens.
 router.get("/attendance/students/summary", async (req, res) => {
     try {
-        const { classId, academicYear, term, studentId, studentIds } = req.query;
+        const { classId, academicYear, term, studentId, studentIds, section } = req.query;
         const ids = studentIds
             ? String(studentIds).split(",").map((s) => s.trim()).filter(Boolean)
             : (studentId ? [studentId] : undefined);
@@ -174,7 +177,8 @@ router.get("/attendance/students/summary", async (req, res) => {
             studentIds: ids,
             classId,
             academicYear,
-            term: term || "annual"
+            term: term || "annual",
+            section,
         });
 
         res.status(200).json({ success: true, count: summaries.length, data: summaries });
@@ -190,7 +194,7 @@ router.get("/attendance/students/summary", async (req, res) => {
 // student grid of the attendance screen and the printable class sheet.
 router.get("/attendance/students/register", async (req, res) => {
     try {
-        const { classId, academicYear, term, date, from, to } = req.query;
+        const { classId, academicYear, term, date, from, to, section } = req.query;
         if (!classId) {
             return res.status(400).json({ success: false, message: "classId is required" });
         }
@@ -199,7 +203,7 @@ router.get("/attendance/students/register", async (req, res) => {
         const toDate = date ? StudentAttendance.normalizeDate(date) : (to ? StudentAttendance.normalizeDate(to) : null);
         if (from && date && !fromDate) return res.status(400).json({ success: false, message: `Invalid date: ${date}` });
 
-        const students = await Student.find({ classId })
+        const students = await Student.find({ classId, ...(section ? { section } : {}) })
             .select("fullName matricule gender department")
             .sort({ fullName: 1 })
             .lean();
@@ -208,6 +212,7 @@ router.get("/attendance/students/register", async (req, res) => {
             classId,
             academicYear,
             term,
+            section,
             from: fromDate,
             to: toDate
         });
@@ -291,7 +296,7 @@ router.put("/attendance/students/record/:id", async (req, res) => {
             term: req.body.term,
             recordedBy: req.body.recordedBy,
             notes: req.body.notes
-        });
+        }, req.get("x-school-section"));
         if (error) return res.status(400).json({ success: false, message: error });
 
         const updated = await StudentAttendance.findByIdAndUpdate(
@@ -355,11 +360,11 @@ router.delete("/attendance/students/register", async (req, res) => {
 // GET - per-day counts for a class (calendar / printable term sheet)
 router.get("/attendance/students/daily", async (req, res) => {
     try {
-        const { classId, academicYear, term, period } = req.query;
+        const { classId, academicYear, term, period, section } = req.query;
         if (!classId) return res.status(400).json({ success: false, message: "classId is required" });
 
         const rows = await StudentAttendance.aggregate([
-            { $match: StudentAttendance.buildMatch({ classId, academicYear, term, period }) },
+            { $match: StudentAttendance.buildMatch({ classId, academicYear, term, period, section }) },
             {
                 $group: {
                     _id: "$date",

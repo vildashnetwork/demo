@@ -27,7 +27,7 @@ const monthName = (value) => {
 // Helper Functions
 // ============================================
 
-const calculateSalary = async (teacherId, month, year, term = 'first') => {
+const calculateSalary = async (teacherId, month, year, term = 'first', section = 'englophone') => {
   const monthNum = monthNumber(month);
   if (!monthNum) throw new Error('A valid salary month is required');
   const calendarYear = Number.parseInt(year, 10) || new Date().getFullYear();
@@ -41,14 +41,16 @@ const calculateSalary = async (teacherId, month, year, term = 'first') => {
 
   const attendance = await TeacherAttendance.find({
     teacherId,
+    section,
     date: { $gte: startDate, $lte: endDate }
   });
 
   const [teacher, schoolSettings, timetable] = await Promise.all([
-    User.findById(teacherId),
-    SchoolSettings.findOne({ academicYear }),
+    User.findOne({ _id: teacherId, section }),
+    SchoolSettings.findOne({ academicYear, section }),
     Timetable.find({
       teacherId,
+      section,
       academicYear,
       isActive: true
     }).populate('classId', 'className department cycle ratePerPeriod')
@@ -144,9 +146,9 @@ const calculateSalary = async (teacherId, month, year, term = 'first') => {
 // Get all salary records - GET /api/salary
 router.get('/salary', async (req, res) => {
   try {
-    const { month, year, teacherId, status } = req.query;
+    const { month, year, teacherId, status, section } = req.query;
 
-    let filter = {};
+    let filter = section ? { section } : {};
     if (month) filter.month = monthName(month);
     if (year) filter.year = year;
     if (teacherId) filter.teacherId = teacherId;
@@ -174,9 +176,10 @@ router.get('/salary', async (req, res) => {
 router.get('/salary/teacher/:teacherId', async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const { month, year } = req.query;
+    const { month, year, section } = req.query;
 
     let filter = { teacherId };
+    if (section) filter.section = section;
     if (month) filter.month = monthName(month);
     if (year) filter.year = year;
 
@@ -201,13 +204,13 @@ router.get('/salary/teacher/:teacherId', async (req, res) => {
 router.get('/salary/calculate/:teacherId', async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const { month, year, term } = req.query;
+    const { month, year, term, section } = req.query;
 
     const monthNum = monthNumber(month) || new Date().getMonth() + 1;
     const yearStr = year || String(new Date().getFullYear());
     const termStr = term || 'first';
 
-    const salaryData = await calculateSalary(teacherId, monthNum, yearStr, termStr);
+    const salaryData = await calculateSalary(teacherId, monthNum, yearStr, termStr, section);
 
     // Get teacher info
     const teacher = await User.findById(teacherId, 'name email');
@@ -236,9 +239,9 @@ router.get('/salary/calculate/:teacherId', async (req, res) => {
 // Get salary statistics - GET /api/salary/stats
 router.get('/salary/stats', async (req, res) => {
   try {
-    const { year } = req.query;
+    const { year, section } = req.query;
 
-    const filter = year ? { year } : {};
+    const filter = { ...(year ? { year } : {}), ...(section ? { section } : {}) };
 
     const stats = await TeacherSalary.aggregate([
       { $match: filter },
@@ -291,6 +294,7 @@ router.get('/salary/stats', async (req, res) => {
 router.post('/salary', async (req, res) => {
   try {
     const { teacherId, month, year, term } = req.body;
+    const section = req.get('x-school-section') || req.body.section || 'englophone';
     const monthNum = monthNumber(month);
     const normalizedMonth = monthNum ? MONTH_NAMES[monthNum - 1] : null;
 
@@ -302,7 +306,7 @@ router.post('/salary', async (req, res) => {
     }
 
     // Check if salary already exists
-    const existing = await TeacherSalary.findOne({ teacherId, month: normalizedMonth, year });
+    const existing = await TeacherSalary.findOne({ teacherId, month: normalizedMonth, year, section });
 
     if (existing) {
       return res.status(400).json({
@@ -312,9 +316,9 @@ router.post('/salary', async (req, res) => {
       });
     }
 
-    const salaryData = await calculateSalary(teacherId, monthNum, year, term || 'first');
+    const salaryData = await calculateSalary(teacherId, monthNum, year, term || 'first', section);
 
-    const salary = new TeacherSalary(salaryData);
+    const salary = new TeacherSalary({ ...salaryData, section });
     await salary.save();
 
     const populated = await TeacherSalary.findById(salary._id)
@@ -339,6 +343,7 @@ router.post('/salary', async (req, res) => {
 router.post('/salary/generate', async (req, res) => {
   try {
     const { month, year, term } = req.body;
+    const section = req.get('x-school-section') || req.body.section || 'englophone';
     const monthNum = monthNumber(month);
     const normalizedMonth = monthNum ? MONTH_NAMES[monthNum - 1] : null;
 
@@ -350,7 +355,7 @@ router.post('/salary/generate', async (req, res) => {
     }
 
     // Get all active teachers
-    const teachers = await User.find({ role: 'teacher', isActive: true });
+    const teachers = await User.find({ role: 'teacher', isActive: true, section });
 
     const created = [];
     const errors = [];
@@ -361,7 +366,8 @@ router.post('/salary/generate', async (req, res) => {
         const existing = await TeacherSalary.findOne({
           teacherId: teacher._id,
           month: normalizedMonth,
-          year
+          year,
+          section
         });
 
         if (existing) {
@@ -373,10 +379,11 @@ router.post('/salary/generate', async (req, res) => {
           teacher._id,
           monthNum,
           year,
-          term || 'first'
+          term || 'first',
+          section
         );
 
-        const salary = new TeacherSalary(salaryData);
+        const salary = new TeacherSalary({ ...salaryData, section });
         await salary.save();
         created.push(salary);
       } catch (error) {

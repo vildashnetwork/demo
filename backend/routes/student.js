@@ -46,7 +46,9 @@ const sanitizeMatriculePayload = async (studentData = {}, ignoreId = null) => {
 // GET all students
 router.get("/students", async (req, res) => {
     try {
-        const records = await Student.find().sort({ fullName: 1 }).lean();
+        const section = req.query.section ? String(req.query.section).trim().toLowerCase() : "";
+        const filter = section ? { section } : {};
+        const records = await Student.find(filter).sort({ fullName: 1 }).lean();
         const students = records.map((student) => ({
             ...student,
             admissionNumber: student.matricule || ""
@@ -141,7 +143,8 @@ router.get("/students/:id", async (req, res) => {
             });
         }
 
-        const student = await Student.findById(id);
+        const section = ["englophone", "francophone"].includes(String(req.query.section)) ? String(req.query.section) : null;
+        const student = await Student.findOne({ _id: id, ...(section ? { section } : {}) });
 
         if (!student) {
             return res.status(404).json({
@@ -187,7 +190,9 @@ router.get("/students/gender/:gender", async (req, res) => {
 router.get("/students/class/:classId", async (req, res) => {
     try {
         const { classId } = req.params;
-        const students = await Student.find({ classId }).sort({ fullName: 1 });
+        const section = req.query.section ? String(req.query.section).trim().toLowerCase() : "";
+        const filter = { classId, ...(section ? { section } : {}) };
+        const students = await Student.find(filter).sort({ fullName: 1 });
 
         res.status(200).json({
             success: true,

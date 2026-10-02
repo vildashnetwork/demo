@@ -9,7 +9,9 @@ const router = express.Router();
 // Get all classes
 router.get("/classes", async (req, res) => {
     try {
-        const records = await SchoolClass.find().sort({ className: 1 }).lean();
+        const section = req.query.section ? String(req.query.section).trim().toLowerCase() : "";
+        const filter = section ? { $or: [{ schoolSection: section }, { section }] } : {};
+        const records = await SchoolClass.find(filter).sort({ className: 1 }).lean();
         const classes = records.map((schoolClass) => ({
             ...schoolClass,
             fullName: [schoolClass.className, schoolClass.department, schoolClass.section].filter(Boolean).join(" ")

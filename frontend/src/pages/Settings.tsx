@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Shield, Database, Plus, Pencil, Trash2, Search, X, Users, UserCog, Loader2, Save, CalendarClock, DollarSign } from "lucide-react";
 import { CompactPageLoader } from "@/components/CompactPageLoader";
+import { getStoredSchoolSection, setStoredSchoolSection } from "@/lib/schoolSystem";
 import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.com/api";
 
 type SchoolSettingsForm = {
   academicYear: string;
+  section: "englophone" | "francophone";
   schoolStartTime: string;
   schoolEndTime: string;
   breakStart: string;
@@ -34,6 +36,7 @@ const currentAcademicYear = () => {
 
 const DEFAULT_SCHOOL_SETTINGS: SchoolSettingsForm = {
   academicYear: currentAcademicYear(),
+  section: "englophone",
   schoolStartTime: "08:00",
   schoolEndTime: "14:00",
   breakStart: "10:15",
@@ -123,11 +126,14 @@ export function SettingsPage() {
         axios.get(`${API_BASE}/classes`),
       ]);
       if (settingsResponse.data.success) {
+        const nextSection = settingsResponse.data.data.section === "francophone" ? "francophone" : "englophone";
         setSchoolSettings({
           ...DEFAULT_SCHOOL_SETTINGS,
           ...settingsResponse.data.data,
+          section: nextSection,
           teacherPaymentMode: settingsResponse.data.data.teacherPaymentMode === "monthly" ? "monthly" : "hourly",
         });
+        setStoredSchoolSection(nextSection);
       }
       if (classesResponse.data.success) {
         setClasses(classesResponse.data.data.map((item: any) => ({
@@ -152,9 +158,13 @@ export function SettingsPage() {
   const saveSchoolSettings = async () => {
     setSavingSchoolSettings(true);
     try {
+      const previousSection = getStoredSchoolSection();
       const response = await axios.post(`${API_BASE}/settings`, schoolSettings);
-      setSchoolSettings({ ...schoolSettings, ...response.data.data });
+      const nextSection = response.data.data?.section === "francophone" ? "francophone" : "englophone";
+      setSchoolSettings({ ...schoolSettings, ...response.data.data, section: nextSection });
+      setStoredSchoolSection(nextSection);
       toast.success("School settings saved");
+      if (previousSection !== nextSection) window.location.reload();
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Could not save school settings");
     } finally {
@@ -366,6 +376,19 @@ export function SettingsPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <SettingsField label="Academic Year">
                 <input value={schoolSettings.academicYear} onChange={(event) => setSchoolSettings((current) => ({ ...current, academicYear: event.target.value }))} className={settingsInputClass} placeholder="2026-2027" />
+              </SettingsField>
+              <SettingsField label="School System">
+                <select
+                  value={schoolSettings.section}
+                  onChange={(event) => setSchoolSettings((current) => ({
+                    ...current,
+                    section: event.target.value as SchoolSettingsForm["section"],
+                  }))}
+                  className={settingsInputClass}
+                >
+                  <option value="englophone">Anglophone</option>
+                  <option value="francophone">Francophone</option>
+                </select>
               </SettingsField>
               <SettingsField label="School Starts">
                 <input type="time" value={schoolSettings.schoolStartTime} onChange={(event) => setSchoolSettings((current) => ({ ...current, schoolStartTime: event.target.value }))} className={settingsInputClass} />

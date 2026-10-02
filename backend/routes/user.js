@@ -781,7 +781,11 @@ router.get('/teacher/schedule/:day', async (req, res) => {
 
 router.get("/users", async (req, res) => {
   try {
-    const filter = req.query.role ? { role: String(req.query.role).trim().toLowerCase() } : {};
+    const section = req.query.section ? String(req.query.section).trim().toLowerCase() : "";
+    const filter = {
+      ...(req.query.role ? { role: String(req.query.role).trim().toLowerCase() } : {}),
+      ...(section ? { section } : {})
+    };
     const users = await User.find(filter);
     res.status(200).json({
       success: true,

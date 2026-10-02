@@ -78,9 +78,8 @@ app.use(morgan(":method :url :status :response-time ms - :res[content-length]"))
 
 // CORS middleware
 const allowedOrigins = [
-    "https://demoschool.vildashnetwork.com",
-    "https://manfess.vildashnetwork.com",
     "http://localhost:5173",
+    "https://demoschool.vildashnetwork.com",
     "http://localhost:3000",
     process.env.FRONTEND_URL
 ].filter(Boolean);
@@ -97,7 +96,7 @@ app.use(cors({
         }
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-School-Section"],
     credentials: true,
     maxAge: 86400 // 24 hours
 }));

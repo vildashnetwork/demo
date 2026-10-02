@@ -9,7 +9,9 @@ const router = express.Router();
 // GET all subjects
 router.get("/subjects", async (req, res) => {
     try {
-        const subjects = await Subject.find().sort({ name: 1 }).lean();
+        const section = req.query.section ? String(req.query.section).trim().toLowerCase() : "";
+        const filter = section ? { section } : {};
+        const subjects = await Subject.find(filter).sort({ name: 1 }).lean();
         res.status(200).json({
             success: true,
             count: subjects.length,

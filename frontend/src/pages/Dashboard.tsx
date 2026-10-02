@@ -131,6 +131,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGri
 import axios from "axios";
 import { toast } from "sonner";
 import { currentUser } from "@/lib/auth";
+import { getStoredSchoolSection } from "@/lib/schoolSystem";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.com/api";
 
@@ -169,6 +170,70 @@ const EMPTY_DASHBOARD: DashboardSummary = {
 export function Dashboard() {
   const user = currentUser();
   const isTeacher = user?.role === "teacher";
+  const isAnglophoneMode = getStoredSchoolSection() === "englophone";
+  const labels = isAnglophoneMode
+    ? {
+      welcome: "Bon retour",
+      subtitle: "Voici ce qui se passe aujourd’hui au sein du portail scolaire.",
+      totalStudents: "Élèves",
+      teachers: "Enseignants",
+      feesCollected: "Frais collectés",
+      passRate: "Taux de réussite",
+      activeStudents: "Élèves actifs",
+      classes: "Classes",
+      outstanding: "en retard",
+      avg: "Moyenne / 20",
+      classAverages: "Moyennes des classes",
+      subjectAverages: "Moyennes des matières",
+      shown: "affichées",
+      best: "Meilleur",
+      classesButton: "Classes",
+      subjectsButton: "Matières",
+      excellenceBoard: "Tableau d’excellence",
+      topStudents: "Meilleurs élèves",
+      noData: "Aucune donnée disponible",
+      trendTitle: "Tendance de performance",
+      aiInsight: "Aperçu IA",
+      basedOn: "D’après",
+      students: "élèves",
+      retry: "Réessayer",
+      updating: "Mise à jour du résumé du tableau de bord…",
+      noClassData: "Aucune donnée de classe disponible",
+      noSubjectData: "Aucune donnée de matière disponible",
+      noTrendData: "Aucune donnée de séquence disponible",
+      live: "En direct",
+    }
+    : {
+      welcome: "Welcome back",
+      subtitle: "Here's what's happening across the school portal today.",
+      totalStudents: "Total Students",
+      teachers: "Teachers",
+      feesCollected: "Fees Collected",
+      passRate: "Pass Rate",
+      activeStudents: "Active students",
+      classes: "classes",
+      outstanding: "outstanding",
+      avg: "Average / 20",
+      classAverages: "Class Averages",
+      subjectAverages: "Subject Averages",
+      shown: "shown",
+      best: "Best",
+      classesButton: "Classes",
+      subjectsButton: "Subjects",
+      excellenceBoard: "Excellence Board",
+      topStudents: "Top performing students",
+      noData: "No data available",
+      noClassData: "No class data available",
+      noSubjectData: "No subject data available",
+      noTrendData: "No sequence data available",
+      trendTitle: "Sequence Performance Trend",
+      aiInsight: "AI Insight",
+      basedOn: "Based on",
+      students: "students",
+      retry: "Retry",
+      updating: "Updating dashboard summary…",
+      live: "Live",
+    };
 
   const [data, setData] = useState<DashboardSummary>(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
@@ -197,20 +262,20 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-extrabold tracking-tight">Welcome back</h1>
-        <p className="text-sm text-black/60 mt-1">Here's what's happening across BCHS DOUALA today.</p>
+        <h1 className="font-display text-3xl font-extrabold tracking-tight">{labels.welcome}</h1>
+        <p className="text-sm text-black/60 mt-1">{labels.subtitle}</p>
       </div>
 
       {loading && (
         <div role="status" className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm text-blue-800">
           <Loader2 className="size-4 animate-spin" />
-          Updating dashboard summary…
+          {labels.updating}
         </div>
       )}
       {loadError && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800">
           <span>{loadError}</span>
-          <button onClick={() => void fetchData()} className="font-bold underline underline-offset-2">Retry</button>
+          <button onClick={() => void fetchData()} className="font-bold underline underline-offset-2">{labels.retry}</button>
         </div>
       )}
 
@@ -218,26 +283,26 @@ export function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi
           icon={Users}
-          label="Total Students"
+          label={labels.totalStudents}
           value={data.totalStudents.toLocaleString()}
-          hint="Active students"
+          hint={labels.activeStudents}
         />
         <Kpi
           icon={GraduationCap}
-          label="Teachers"
+          label={labels.teachers}
           value={data.totalTeachers.toString()}
-          hint={`${data.totalClasses} classes`}
+          hint={`${data.totalClasses} ${labels.classes}`}
         />
         <Kpi
           icon={Wallet}
-          label="Fees Collected"
+          label={labels.feesCollected}
           value={`${(data.totalFeesPaid / 1_000_000).toFixed(1)}M XAF`}
-          hint={`${(data.totalFeesDue / 1_000_000).toFixed(1)}M outstanding`}
+          hint={`${(data.totalFeesDue / 1_000_000).toFixed(1)}M ${labels.outstanding}`}
           tone="brand"
         />
         <Kpi
           icon={TrendingUp}
-          label="Pass Rate"
+          label={labels.passRate}
           value={`${data.passRate.toFixed(1)}%`}
           hint="Avg ≥ 10/20"
         />
@@ -248,8 +313,8 @@ export function Dashboard() {
         <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <div>
-              <h3 className="font-display font-bold">{performanceView === "classes" ? "Class Averages" : "Subject Averages"}</h3>
-              <p className="text-xs text-black/50 mt-0.5">Average score / 20 · {performanceView === "classes" ? data.classAvgs.length : data.subjectAvgs.length} shown</p>
+              <h3 className="font-display font-bold">{performanceView === "classes" ? labels.classAverages : labels.subjectAverages}</h3>
+              <p className="text-xs text-black/50 mt-0.5">{labels.avg} · {performanceView === "classes" ? data.classAvgs.length : data.subjectAvgs.length} {labels.shown}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <div className="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-1">
@@ -258,20 +323,20 @@ export function Dashboard() {
                   onClick={() => setPerformanceView("classes")}
                   className={`rounded-md px-3 py-1.5 text-xs font-semibold ${performanceView === "classes" ? "bg-white text-brand shadow-sm" : "text-black/55 hover:text-black"}`}
                 >
-                  Classes
+                  {labels.classesButton}
                 </button>
                 <button
                   type="button"
                   onClick={() => setPerformanceView("subjects")}
                   className={`rounded-md px-3 py-1.5 text-xs font-semibold ${performanceView === "subjects" ? "bg-white text-brand shadow-sm" : "text-black/55 hover:text-black"}`}
                 >
-                  Subjects
+                  {labels.subjectsButton}
                 </button>
               </div>
               {(performanceView === "classes" ? data.bestClass : data.bestSubject) && (
                 <div className="flex items-center gap-1.5 text-xs bg-brand/10 text-brand px-3 py-1.5 rounded-full font-bold">
                   <Award className="size-3.5" />
-                  Best: {performanceView === "classes" ? data.bestClass?.name : data.bestSubject?.name}
+                  {labels.best}: {performanceView === "classes" ? data.bestClass?.name : data.bestSubject?.name}
                   {" · "}{performanceView === "classes" ? data.bestClass?.avg : data.bestSubject?.avg}
                 </div>
               )}
@@ -299,14 +364,14 @@ export function Dashboard() {
             </div>
           ) : (
             <div className="h-64 flex items-center justify-center text-black/40">
-              No {performanceView === "classes" ? "class" : "subject"} data available
+              {performanceView === "classes" ? labels.noClassData : labels.noSubjectData}
             </div>
           )}
         </div>
 
         <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
-          <h3 className="font-display font-bold mb-1">Excellence Board</h3>
-          <p className="text-xs text-black/50 mb-4">Top performing students</p>
+          <h3 className="font-display font-bold mb-1">{labels.excellenceBoard}</h3>
+          <p className="text-xs text-black/50 mb-4">{labels.topStudents}</p>
           <div className="space-y-3">
             {data.top.length > 0 ? (
               data.top.map((t) => (
@@ -325,7 +390,7 @@ export function Dashboard() {
                 </div>
               ))
             ) : (
-              <div className="text-center text-black/40 py-8">No data available</div>
+              <div className="text-center text-black/40 py-8">{labels.noData}</div>
             )}
           </div>
         </div>
@@ -334,7 +399,7 @@ export function Dashboard() {
       {/* Trend and AI Insight */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
-          <h3 className="font-display font-bold mb-4">Sequence Performance Trend</h3>
+          <h3 className="font-display font-bold mb-4">{labels.trendTitle}</h3>
           {data.trend.some(t => t.average !== null) ? (
             <div className="h-56">
               <ResponsiveContainer>
@@ -357,7 +422,7 @@ export function Dashboard() {
             </div>
           ) : (
             <div className="h-56 flex items-center justify-center text-black/40">
-              No sequence data available
+              {labels.noTrendData}
             </div>
           )}
         </div>
@@ -367,13 +432,13 @@ export function Dashboard() {
             <div className="size-10 bg-brand rounded-lg grid place-items-center mb-4">
               <AlertCircle className="size-5 text-white" />
             </div>
-            <h3 className="font-display font-bold text-lg">AI Insight</h3>
+            <h3 className="font-display font-bold text-lg">{labels.aiInsight}</h3>
             <p className="text-sm text-white/60 mt-2">
-              {data.aiInsight || "Monitor student performance regularly for the best results."}
+              {data.aiInsight || (isAnglophoneMode ? "Surveillez régulièrement les performances des élèves pour obtenir les meilleurs résultats." : "Monitor student performance regularly for the best results.")}
             </p>
           </div>
           <div className="mt-4 pt-4 border-t border-white/10 text-xs text-white/40">
-            {data.totalStudents > 0 ? `Based on ${data.totalStudents} students` : "No data available"}
+            {data.totalStudents > 0 ? `${labels.basedOn} ${data.totalStudents} ${labels.students}` : labels.noData}
           </div>
         </div>
       </div>

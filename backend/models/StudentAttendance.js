@@ -106,9 +106,10 @@ studentAttendanceSchema.statics.academicYearForDate = function (value) {
 
 /** Mongo match built from the common query filters. */
 studentAttendanceSchema.statics.buildMatch = function ({
-    studentIds, classId, academicYear, term, from, to, status, period
+    studentIds, classId, academicYear, term, from, to, status, period, section
 } = {}) {
     const match = {};
+    if (section === "englophone" || section === "francophone") match.section = section;
     if (studentIds) match.studentId = { $in: Array.isArray(studentIds) ? studentIds : [studentIds] };
     if (classId) match.classId = classId;
     if (academicYear && academicYear !== "all") match.academicYear = academicYear;

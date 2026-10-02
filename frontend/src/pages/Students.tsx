@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Search, Plus, Trash2, Pencil, Filter, Download, FileText, Printer } from "lucide-react";
 import { CompactPageLoader } from "@/components/CompactPageLoader";
+import { getStoredSchoolSection } from "@/lib/schoolSystem";
 import { toast } from "sonner";
 import axios from "axios";
 import jsPDF from "jspdf";
@@ -73,11 +74,12 @@ export function StudentsPage() {
 
   const fetchStudents = async (selectedClassId: string) => {
     try {
+      const activeSection = getStoredSchoolSection();
       const endpoint = selectedClassId === "all"
         ? `${API_BASE}/students`
         : `${API_BASE}/students/class/${selectedClassId}`;
 
-      const studentsRes = await axios.get(endpoint);
+      const studentsRes = await axios.get(endpoint, { params: { section: activeSection } });
       if (studentsRes.data.success) {
         const mappedStudents = studentsRes.data.data.map((student: any) => ({
           ...student,
@@ -95,7 +97,8 @@ export function StudentsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const classesRes = await axios.get(`${API_BASE}/classes`);
+      const activeSection = getStoredSchoolSection();
+      const classesRes = await axios.get(`${API_BASE}/classes`, { params: { section: activeSection } });
 
       if (classesRes.data.success) {
         const mappedClasses = classesRes.data.data.map((cls: any) => ({

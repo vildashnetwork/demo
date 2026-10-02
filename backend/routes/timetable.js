@@ -15,9 +15,9 @@ import { generateTimetableSchedule } from '../services/timetableScheduler.js';
 
 router.get('/timetable', async (req, res) => {
   try {
-    const { teacherId, classId, day, academicYear } = req.query;
+    const { teacherId, classId, day, academicYear, section } = req.query;
 
-    let filter = {};
+    let filter = section ? { section } : {};
     if (teacherId) filter.teacherId = teacherId;
     if (classId) filter.classId = classId;
     if (day) filter.day = day;
@@ -47,9 +47,10 @@ router.get('/timetable', async (req, res) => {
 router.get('/timetable/teacher/:teacherId', async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const { day, academicYear } = req.query;
+    const { day, academicYear, section } = req.query;
 
     let filter = { teacherId, isActive: true };
+    if (section) filter.section = section;
     if (day) filter.day = day;
     if (academicYear) filter.academicYear = academicYear;
 
@@ -692,10 +693,10 @@ router.post('/timetable/generate', async (req, res) => {
         conflicts,
         suggestions: conflicts.length > 0
           ? [
-              'Fix All Conflicts regenerates the week and fills every slot a qualified teacher can cover.',
-              'If a conflict still remains, add more active teachers or assign the missing subject/class mappings.',
-              'Reduce weekly periods or increase periods per day when total demand exceeds available slots.',
-            ]
+            'Fix All Conflicts regenerates the week and fills every slot a qualified teacher can cover.',
+            'If a conflict still remains, add more active teachers or assign the missing subject/class mappings.',
+            'Reduce weekly periods or increase periods per day when total demand exceeds available slots.',
+          ]
           : [],
         entries: populatedEntries,
       },

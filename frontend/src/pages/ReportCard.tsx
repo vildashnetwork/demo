@@ -361,10 +361,11 @@ export function ReportCard() {
   const fetchData = async () => {
     try {
       setLoading(true);
+      const activeSection = getStoredSchoolSection();
       const [studentRes, subjectsRes, classesRes] = await Promise.all([
         axios.get(`${API_BASE}/students/${studentId}`),
-        axios.get(`${API_BASE}/subjects`),
-        axios.get(`${API_BASE}/classes`),
+        axios.get(`${API_BASE}/subjects`, { params: { section: activeSection } }),
+        axios.get(`${API_BASE}/classes`, { params: { section: activeSection } }),
       ]);
 
       const sourceStudent = studentRes.data.success ? studentRes.data.data : null;
@@ -661,7 +662,51 @@ export function ReportCard() {
   }
 
   const { student, cls, rows, avg, totalPoints, totalCoef, position, classSize, classGeneralAvg, term } = data;
-  const status = avg >= 10 ? "Promoted" : "Repeat";
+  const isFrancophoneMode = getStoredSchoolSection() === "francophone";
+  const labels = isFrancophoneMode ? {
+    student: "Élève",
+    admission: "N° d’admission",
+    className: "Classe",
+    section: "Section",
+    sex: "Sexe",
+    dob: "Date de naissance",
+    classSize: "Effectif",
+    position: "Rang",
+    average: "Moyenne /20",
+    classAvg: "Moy. classe",
+    grade: "Mention",
+    status: "Décision",
+    subject: "Matière",
+    score: "Note",
+    coef: "Coef",
+    total: "Total",
+    remark: "Appréciation",
+    term: "Période",
+    approved: "Admis",
+    repeat: "Redoublant",
+  } : {
+    student: "Student",
+    admission: "Admission №",
+    className: "Class",
+    section: "Section",
+    sex: "Sex",
+    dob: "Date of Birth",
+    classSize: "Class Size",
+    position: "Position",
+    average: "Average /20",
+    classAvg: "Class Avg",
+    grade: "Grade",
+    status: "Status",
+    subject: "Subject",
+    score: "Score",
+    coef: "Coef",
+    total: "Total",
+    remark: "Remark",
+    term: "Term",
+    approved: "Promoted",
+    repeat: "Repeat",
+  };
+  const status = avg >= 10 ? labels.approved : labels.repeat;
   const statusColor = avg >= 10 ? "text-green-600" : "text-red-600";
   const gradeInfo = gradeFor(avg);
 
@@ -730,14 +775,14 @@ export function ReportCard() {
 
             {/* Student info */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <Info label="Student" value={student.fullName} />
-              <Info label="Admission №" value={student.admissionNumber || "N/A"} />
-              <Info label="Class" value={cls.className} />
-              <Info label="Section" value={student.department} />
-              <Info label="Sex" value={student.gender === "male" ? "Male" : "Female"} />
-              <Info label="Date of Birth" value={student.dob} />
-              <Info label="Class Size" value={String(classSize)} />
-              <Info label="Position" value={position ? `${ordinal(position)} / ${classSize}` : "—"} />
+              <Info label={labels.student} value={student.fullName} />
+              <Info label={labels.admission} value={student.admissionNumber || "N/A"} />
+              <Info label={labels.className} value={cls.className} />
+              <Info label={labels.section} value={student.department} />
+              <Info label={labels.sex} value={student.gender === "male" ? (isFrancophoneMode ? "Masculin" : "Male") : (isFrancophoneMode ? "Féminin" : "Female")} />
+              <Info label={labels.dob} value={student.dob} />
+              <Info label={labels.classSize} value={String(classSize)} />
+              <Info label={labels.position} value={position ? `${ordinal(position)} / ${classSize}` : "—"} />
             </div>
 
             {attendanceSummary && (
@@ -757,13 +802,13 @@ export function ReportCard() {
             <table className="w-full text-[11px] mt-4 border border-[#121212]">
               <thead className="bg-[#121212] text-white">
                 <tr>
-                  <th className="px-2 py-1.5 text-left border border-[#121212]">Subject</th>
-                  <th className="px-2 py-1.5 border border-[#121212]">Score</th>
-                  <th className="px-2 py-1.5 border border-[#121212]">Coef</th>
-                  <th className="px-2 py-1.5 border border-[#121212]">Total</th>
-                  <th className="px-2 py-1.5 border border-[#121212]">Class Avg</th>
-                  <th className="px-2 py-1.5 border border-[#121212]">Grade</th>
-                  <th className="px-2 py-1.5 text-left border border-[#121212]">Remark</th>
+                  <th className="px-2 py-1.5 text-left border border-[#121212]">{labels.subject}</th>
+                  <th className="px-2 py-1.5 border border-[#121212]">{labels.score}</th>
+                  <th className="px-2 py-1.5 border border-[#121212]">{labels.coef}</th>
+                  <th className="px-2 py-1.5 border border-[#121212]">{labels.total}</th>
+                  <th className="px-2 py-1.5 border border-[#121212]">{labels.classAvg}</th>
+                  <th className="px-2 py-1.5 border border-[#121212]">{labels.grade}</th>
+                  <th className="px-2 py-1.5 text-left border border-[#121212]">{labels.remark}</th>
                 </tr>
               </thead>
               <tbody>
@@ -792,11 +837,11 @@ export function ReportCard() {
 
             {/* Summary */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4 text-xs">
-              <Summary label="Average /20" value={avg.toFixed(2)} highlight />
-              <Summary label="Class Avg" value={classGeneralAvg.toFixed(2)} />
-              <Summary label="Rank" value={position ? `${ordinal(position)} / ${classSize}` : "—"} />
-              <Summary label="Grade" value={gradeInfo.grade} />
-              <Summary label="Status" value={status} tone={status === "Promoted" ? "good" : "bad"} />
+              <Summary label={labels.average} value={avg.toFixed(2)} highlight />
+              <Summary label={labels.classAvg} value={classGeneralAvg.toFixed(2)} />
+              <Summary label={labels.position} value={position ? `${ordinal(position)} / ${classSize}` : "—"} />
+              <Summary label={labels.grade} value={gradeInfo.grade} />
+              <Summary label={labels.status} value={status} tone={status === labels.approved ? "good" : "bad"} />
             </div>
 
             {/* Conduct */}

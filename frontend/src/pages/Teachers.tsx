@@ -10,10 +10,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { Mail, Phone, BookOpen, Plus, Pencil, Trash2, Search, X } from "lucide-react";
 import { CompactPageLoader } from "@/components/CompactPageLoader";
+import { getStoredSchoolSection } from "@/lib/schoolSystem";
 import { toast } from "sonner";
 import axios from "axios";
 
-const API_BASE = import.meta.env.VITE_API_URL + "/users"
+const API_BASE = (import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.com/api") + "/users"
 
 
 
@@ -77,7 +78,8 @@ export function TeachersPage() {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(API_BASE);
+      const activeSection = getStoredSchoolSection();
+      const response = await axios.get(API_BASE, { params: { section: activeSection } });
       if (response.data.success) {
         const mappedTeachers = response.data.data.map((user: any) => ({
           id: user._id,
@@ -104,7 +106,8 @@ export function TeachersPage() {
 
   const fetchSubjects = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/subjects");
+      const activeSection = getStoredSchoolSection();
+      const response = await axios.get(`${import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.com/api"}/subjects`, { params: { section: activeSection } });
       if (response.data.success) {
         const mappedSubjects = response.data.data.map((subj: any) => ({
           id: subj._id || subj.id,
@@ -122,7 +125,8 @@ export function TeachersPage() {
 
   const fetchClasses = async () => {
     try {
-      const response = await axios.get(" http://localhost:5000/api/classes");
+      const activeSection = getStoredSchoolSection();
+      const response = await axios.get(`${import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.com/api"}/classes`, { params: { section: activeSection } });
       if (response.data.success) {
 
         console.log("📚 Raw classes from API:", response.data.data);

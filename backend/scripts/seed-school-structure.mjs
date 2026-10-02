@@ -10,9 +10,9 @@ import TeacherAttendance from "../models/TeacherAttendance.js";
 import TeacherSalary from "../models/TeacherSalary.js";
 import Mark from "../models/Mark.js";
 import Timetable from "../models/Timetable.js";
-import Counter from "../models/Counter.js";
 
 const ACADEMIC_YEAR = "2025-2026";
+const SECTION = "englophone";
 
 const classSeed = [
     { className: "Form 1", department: "General", cycle: "1st Cycle", section: "A", tuitionFee: 180000, tuitionInstallments: 3, registrationFeeRequired: true, registrationFeeAmount: 25000 },
@@ -296,6 +296,7 @@ const schoolSettingsSeed = {
     periodDurationMinutes: 45,
     schoolDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
     academicYear: ACADEMIC_YEAR,
+    section: SECTION,
     periodsPerDay: 6,
     teacherPaymentMode: "hourly",
 };
@@ -305,7 +306,7 @@ function getClassKey(className, department) {
 }
 
 async function main() {
-    const mongoUri = process.env.MONGOURIOFFLINE || process.env.MONGOURI;
+    const mongoUri = process.env.SEED_DB === "offline" ? process.env.MONGOURIOFFLINE : process.env.MONGOURI;
     if (!mongoUri) {
         throw new Error("Neither MONGOURIOFFLINE nor MONGOURI is defined in the environment.");
     }
@@ -315,15 +316,16 @@ async function main() {
         socketTimeoutMS: 120000,
         maxPoolSize: 5,
     });
-    console.log(`Connected to ${mongoUri}`);
+    console.log(`Connected to configured ${process.env.SEED_DB === "offline" ? "offline" : "online"} database.`);
 
     const createdClassIds = new Map();
     for (const schoolClass of classSeed) {
         const doc = await SchoolClass.findOneAndUpdate(
-            { className: schoolClass.className, department: schoolClass.department, acedemicYear: ACADEMIC_YEAR },
+            { className: schoolClass.className, department: schoolClass.department, acedemicYear: ACADEMIC_YEAR, schoolSection: SECTION },
             {
                 $set: {
                     ...schoolClass,
+                    schoolSection: SECTION,
                     acedemicYear: ACADEMIC_YEAR,
                     isActive: true,
                     studentCount: 0,
@@ -339,7 +341,6 @@ async function main() {
     }
 
     const createdSubjectIds = new Map();
-    await Subject.deleteMany({ code: { $in: ["ENGT", "FRET", "CIVT", "HIST", "GEOT", "ICTT"] } });
     for (const subject of subjectSeed) {
         const classIds = classSeed
             .filter((schoolClass) => subject.classNames.includes(schoolClass.className) && subject.departments.includes(schoolClass.department))
@@ -347,10 +348,11 @@ async function main() {
             .filter(Boolean);
 
         const doc = await Subject.findOneAndUpdate(
-            { code: subject.code },
+            { code: subject.code, section: SECTION },
             {
                 $set: {
                     ...subject,
+                    section: SECTION,
                     classIds,
                     teacherIds: [],
                     periodsByClass: {},
@@ -364,7 +366,7 @@ async function main() {
     }
 
     await SchoolSettings.findOneAndUpdate(
-        { academicYear: ACADEMIC_YEAR },
+        { academicYear: ACADEMIC_YEAR, section: SECTION },
         { $set: schoolSettingsSeed },
         { upsert: true, setDefaultsOnInsert: true, runValidators: true, returnDocument: "after" }
     );
@@ -374,7 +376,7 @@ async function main() {
     for (const user of userSeed) {
         const doc = await User.findOneAndUpdate(
             { username: user.username },
-            { $set: user },
+            { $set: { ...user, section: SECTION } },
             { upsert: true, setDefaultsOnInsert: true, runValidators: true, returnDocument: "after" }
         );
         createdUsers.push(doc);
@@ -412,6 +414,7 @@ async function main() {
             {
                 $set: {
                     fullName: student.fullName,
+                    section: SECTION,
                     matricule: matriculeValue,
                     enrollmentYear: 2025,
                     gender: student.gender,
@@ -490,6 +493,7 @@ async function main() {
                             status,
                             academicYear: ACADEMIC_YEAR,
                             term,
+                            section: SECTION,
                             recordedBy: "admin01",
                             notes: "Seed attendance",
                         },
@@ -508,15 +512,15 @@ async function main() {
     for (const [index, teacher] of teacherUsers.slice(0, 3).entries()) {
         await TeacherAttendance.findOneAndUpdate(
             { teacherId: teacher._id, date: attendanceDates[0] },
-            { $set: { teacherId: teacher._id, date: attendanceDates[0], checkIn: "07:40", checkOut: "15:30", status: "present", hoursWorked: 7.5, periodsTaught: 6, notes: "Seed attendance", academicYear: ACADEMIC_YEAR, term: "first" } },
+            { $set: { teacherId: teacher._id, date: attendanceDates[0], section: SECTION, checkIn: "07:40", checkOut: "15:30", status: "present", hoursWorked: 7.5, periodsTaught: 6, notes: "Seed attendance", academicYear: ACADEMIC_YEAR, term: "first" } },
             { upsert: true, setDefaultsOnInsert: true, runValidators: true, returnDocument: "after" }
         );
     }
 
     for (const teacher of teacherUsers) {
         await TeacherSalary.findOneAndUpdate(
-            { teacherId: teacher._id, month: "September", year: "2025" },
-            { $set: { teacherId: teacher._id, month: "September", year: "2025", periodCounts: { firstCycle: 12, secondCycle: 8, total: 20 }, rates: { firstCycle: 500, secondCycle: 700 }, paymentMode: "hourly", monthlyAmount: 120000, classBreakdown: [], grossSalary: 120000, deductions: { total: 0, details: [] }, netSalary: 120000, attendance: { present: 18, absent: 0, late: 0, excused: 0 }, status: "pending", academicYear: ACADEMIC_YEAR, term: "first" } },
+            { teacherId: teacher._id, month: "September", year: "2025", section: SECTION },
+            { $set: { teacherId: teacher._id, section: SECTION, month: "September", year: "2025", periodCounts: { firstCycle: 12, secondCycle: 8, total: 20 }, rates: { firstCycle: 500, secondCycle: 700 }, paymentMode: "hourly", monthlyAmount: 120000, classBreakdown: [], grossSalary: 120000, deductions: { total: 0, details: [] }, netSalary: 120000, attendance: { present: 18, absent: 0, late: 0, excused: 0 }, status: "pending", academicYear: ACADEMIC_YEAR, term: "first" } },
             { upsert: true, setDefaultsOnInsert: true, runValidators: true, returnDocument: "after" }
         );
     }
@@ -544,10 +548,11 @@ async function main() {
                     : "third";
 
             await TeacherSalary.findOneAndUpdate(
-                { teacherId: teacher._id, month, year: "2026" },
+                { teacherId: teacher._id, month, year: "2026", section: SECTION },
                 {
                     $set: {
                         teacherId: teacher._id,
+                        section: SECTION,
                         month,
                         year: "2026",
                         periodCounts: { firstCycle, secondCycle, total: firstCycle + secondCycle },
@@ -577,8 +582,8 @@ async function main() {
 
     const markSequences = ["1st seq", "2nd seq", "3rd seq", "4th seq", "5th seq", "6th seq"];
     const markOperations = [];
-    const existingMarkRows = await Mark.find({ academicyear: ACADEMIC_YEAR })
-        .select("studentId subjectId classId sequence")
+    const existingMarkRows = await Mark.find({ academicyear: ACADEMIC_YEAR, section: SECTION })
+        .select("studentId subjectId classId sequence section")
         .lean();
     const existingMarkKeys = new Set(existingMarkRows.map((mark) =>
         `${mark.studentId}|${mark.subjectId}|${mark.classId}|${mark.sequence}`
@@ -609,7 +614,7 @@ async function main() {
                 existingMarkKeys.add(markKey);
                 markOperations.push({
                     updateOne: {
-                        filter: { studentId, subjectId, classId, sequence, academicyear: ACADEMIC_YEAR },
+                        filter: { studentId, subjectId, classId, sequence, academicyear: ACADEMIC_YEAR, section: SECTION },
                         update: {
                             $set: {
                                 studentId,
@@ -617,6 +622,7 @@ async function main() {
                                 classId,
                                 sequence,
                                 academicyear: ACADEMIC_YEAR,
+                                section: SECTION,
                                 score,
                                 recordedBy: String(teacher._id),
                             },
@@ -674,31 +680,25 @@ async function main() {
         if (!teacherId || !classId || !subjectId) continue;
 
         await Timetable.findOneAndUpdate(
-            { teacherId, classId, subjectId, day: item.day, startTime: item.startTime, academicYear: ACADEMIC_YEAR },
-            { $set: { teacherId, classId, subjectId, day: item.day, startTime: item.startTime, endTime: item.endTime, periodNumber: item.periodNumber, cycle: item.cycle, ratePerPeriod: item.cycle === "first" ? 500 : 700, room: item.room, academicYear: ACADEMIC_YEAR, isActive: true } },
+            { teacherId, classId, subjectId, day: item.day, startTime: item.startTime, academicYear: ACADEMIC_YEAR, section: SECTION },
+            { $set: { teacherId, classId, subjectId, day: item.day, startTime: item.startTime, endTime: item.endTime, periodNumber: item.periodNumber, cycle: item.cycle, ratePerPeriod: item.cycle === "first" ? 500 : 700, room: item.room, academicYear: ACADEMIC_YEAR, section: SECTION, isActive: true } },
             { upsert: true, setDefaultsOnInsert: true, runValidators: true, returnDocument: "after" }
         );
     }
 
-    await Counter.findOneAndUpdate(
-        { key: `matricule:${ACADEMIC_YEAR}` },
-        { $set: { key: `matricule:${ACADEMIC_YEAR}`, seq: studentRecords.length, description: `Next matricule counter for ${ACADEMIC_YEAR}` } },
-        { upsert: true, setDefaultsOnInsert: true, returnDocument: "after" }
-    );
-
     const countSummary = {
-        classes: await SchoolClass.countDocuments({ acedemicYear: ACADEMIC_YEAR }),
-        subjects: await Subject.countDocuments({}),
-        users: await User.countDocuments({}),
-        students: await Student.countDocuments({}),
+        classes: await SchoolClass.countDocuments({ acedemicYear: ACADEMIC_YEAR, schoolSection: SECTION }),
+        subjects: await Subject.countDocuments({ section: SECTION }),
+        users: await User.countDocuments({ section: SECTION }),
+        students: await Student.countDocuments({ section: SECTION }),
         classesWithStudents: studentCountMap.size,
         minimumStudentsPerClass,
-        studentAttendance: await StudentAttendance.countDocuments({ academicYear: ACADEMIC_YEAR }),
-        teacherAttendance: await TeacherAttendance.countDocuments({ academicYear: ACADEMIC_YEAR }),
-        teacherSalary: await TeacherSalary.countDocuments({ academicYear: ACADEMIC_YEAR }),
-        marks: await Mark.countDocuments({ academicyear: ACADEMIC_YEAR }),
-        timetable: await Timetable.countDocuments({ academicYear: ACADEMIC_YEAR }),
-        settings: await SchoolSettings.countDocuments({ academicYear: ACADEMIC_YEAR }),
+        studentAttendance: await StudentAttendance.countDocuments({ academicYear: ACADEMIC_YEAR, section: SECTION }),
+        teacherAttendance: await TeacherAttendance.countDocuments({ academicYear: ACADEMIC_YEAR, section: SECTION }),
+        teacherSalary: await TeacherSalary.countDocuments({ academicYear: ACADEMIC_YEAR, section: SECTION }),
+        marks: await Mark.countDocuments({ academicyear: ACADEMIC_YEAR, section: SECTION }),
+        timetable: await Timetable.countDocuments({ academicYear: ACADEMIC_YEAR, section: SECTION }),
+        settings: await SchoolSettings.countDocuments({ academicYear: ACADEMIC_YEAR, section: SECTION }),
     };
 
     console.log("Seed completed:", countSummary);

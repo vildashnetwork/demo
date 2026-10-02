@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, BookOpen, Search, X } from "lucide-react";
 import { CompactPageLoader } from "@/components/CompactPageLoader";
+import { getStoredSchoolSection } from "@/lib/schoolSystem";
 import { toast } from "sonner";
 import axios from "axios";
 
@@ -135,10 +136,11 @@ export function ClassesPage() {
       setLoading(true);
       console.log("Fetching data...");
 
+      const activeSection = getStoredSchoolSection();
       const [subjectsRes, classesRes, teachersRes] = await Promise.all([
-        axios.get(`${API_BASE}/subjects`),
-        axios.get(`${API_BASE}/classes`),
-        axios.get(`${API_BASE}/users`)
+        axios.get(`${API_BASE}/subjects`, { params: { section: activeSection } }),
+        axios.get(`${API_BASE}/classes`, { params: { section: activeSection } }),
+        axios.get(`${API_BASE}/users`, { params: { section: activeSection } })
       ]);
 
       console.log("Subjects response:", subjectsRes.data);

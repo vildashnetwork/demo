@@ -11,8 +11,9 @@ router.get("/settings", async (req, res) => {
     const academicYear =
       req.query.academicYear ||
       `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+    const section = req.query.section || "englophone";
 
-    let settings = await SchoolSettings.findOne({ academicYear });
+    let settings = await SchoolSettings.findOne({ academicYear, section });
 
     if (!settings) {
       // Return sensible defaults so the UI is never empty.
@@ -24,6 +25,7 @@ router.get("/settings", async (req, res) => {
         periodDurationMinutes: 45,
         schoolDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
         academicYear,
+        section,
         periodsPerDay: 6,
         teacherPaymentMode: "hourly",
       };
@@ -55,11 +57,13 @@ router.post("/settings", async (req, res) => {
       schoolDays,
       periodsPerDay,
       teacherPaymentMode,
+      section,
     } = req.body;
 
     const academicYear =
       req.body.academicYear ||
       `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+    const activeSection = section || "englophone";
 
     // Basic validation
     const timeRe = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
@@ -119,6 +123,13 @@ router.post("/settings", async (req, res) => {
       });
     }
 
+    if (activeSection && !["englophone", "francophone"].includes(activeSection)) {
+      return res.status(400).json({
+        success: false,
+        message: "School system must be either anglophone or francophone",
+      });
+    }
+
     const updates = {
       schoolStartTime,
       schoolEndTime,
@@ -133,12 +144,13 @@ router.post("/settings", async (req, res) => {
         "Friday",
       ],
       periodsPerDay: Number(periodsPerDay) || 6,
+      section: activeSection,
       ...(teacherPaymentMode ? { teacherPaymentMode } : {}),
     };
 
-    // Upsert by academic year (unique index enforces one settings document/year).
+    // Upsert by academic year and stream so Anglophone and Francophone settings remain separate.
     const settings = await SchoolSettings.findOneAndUpdate(
-      { academicYear },
+      { academicYear, section: activeSection },
       updates,
       { new: true, upsert: true, runValidators: true }
     );
