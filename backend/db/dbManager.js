@@ -61,7 +61,7 @@ const osResolveSrv = (srvName) => {
 };
 
 // Convert a mongodb+srv:// URI into a standard mongodb:// seed-list URI
-const srvToStandardUri = async (srvUri) => {
+export const srvToStandardUri = async (srvUri) => {
     const match = srvUri.match(/^mongodb\+srv:\/\/([^:/?#]+)(?::([^@/#]*))?@([^/?#]+)(\/[^?#]*)?(\?.*)?$/);
     if (!match) throw new Error('Could not parse the mongodb+srv:// connection string');
     const [, user, password, host, dbPath = '', query = ''] = match;

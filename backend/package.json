@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon index"
+    "start": "nodemon index",
+    "seed:francophone": "node scripts/seed-francophone-data.mjs",
+    "seed:all": "node scripts/seed-school-structure.mjs && node scripts/seed-francophone-data.mjs"
   },
   "keywords": [],
   "author": "",

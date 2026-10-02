@@ -10,6 +10,7 @@ import TeacherAttendance from "../models/TeacherAttendance.js";
 import TeacherSalary from "../models/TeacherSalary.js";
 import Mark from "../models/Mark.js";
 import Timetable from "../models/Timetable.js";
+import { srvToStandardUri } from "../db/dbManager.js";
 
 const ACADEMIC_YEAR = "2025-2026";
 const SECTION = "englophone";
@@ -306,10 +307,13 @@ function getClassKey(className, department) {
 }
 
 async function main() {
-    const mongoUri = process.env.SEED_DB === "offline" ? process.env.MONGOURIOFFLINE : process.env.MONGOURI;
-    if (!mongoUri) {
+    const connectionUri = process.env.SEED_DB === "offline" ? process.env.MONGOURIOFFLINE : process.env.MONGOURI;
+    if (!connectionUri) {
         throw new Error("Neither MONGOURIOFFLINE nor MONGOURI is defined in the environment.");
     }
+    const mongoUri = process.env.SEED_DB === "offline" || !connectionUri.startsWith("mongodb+srv://")
+        ? connectionUri
+        : await srvToStandardUri(connectionUri);
 
     await mongoose.connect(mongoUri, {
         serverSelectionTimeoutMS: 30000,
@@ -519,7 +523,7 @@ async function main() {
 
     for (const teacher of teacherUsers) {
         await TeacherSalary.findOneAndUpdate(
-            { teacherId: teacher._id, month: "September", year: "2025", section: SECTION },
+            { teacherId: teacher._id, month: "September", year: "2025" },
             { $set: { teacherId: teacher._id, section: SECTION, month: "September", year: "2025", periodCounts: { firstCycle: 12, secondCycle: 8, total: 20 }, rates: { firstCycle: 500, secondCycle: 700 }, paymentMode: "hourly", monthlyAmount: 120000, classBreakdown: [], grossSalary: 120000, deductions: { total: 0, details: [] }, netSalary: 120000, attendance: { present: 18, absent: 0, late: 0, excused: 0 }, status: "pending", academicYear: ACADEMIC_YEAR, term: "first" } },
             { upsert: true, setDefaultsOnInsert: true, runValidators: true, returnDocument: "after" }
         );
@@ -548,7 +552,7 @@ async function main() {
                     : "third";
 
             await TeacherSalary.findOneAndUpdate(
-                { teacherId: teacher._id, month, year: "2026", section: SECTION },
+                { teacherId: teacher._id, month, year: "2026" },
                 {
                     $set: {
                         teacherId: teacher._id,
