@@ -290,7 +290,7 @@ export function TeachersPage() {
         )}
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filteredTeachers.length === 0 ? (
           <div className="col-span-full text-center py-12">
             <p className="text-black/40">
@@ -302,7 +302,7 @@ export function TeachersPage() {
             const teacherSubjects = subjects.filter((s) => t.subjectIds.includes(s.id));
             const teacherClasses = classes.filter((c) => t.classIds.includes(c.id));
             return (
-              <div key={t.id} className="bg-white rounded-2xl border border-stone-200 p-5 hover:shadow-md transition-shadow">
+              <div key={t.id} className="min-w-0 rounded-2xl border border-stone-200 bg-white p-4 transition-shadow hover:shadow-md sm:p-5">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="size-12 bg-brand/10 text-brand grid place-items-center rounded-xl font-bold font-display">
                     {t.fullName.split(" ").map((p) => p[0]).slice(0, 2).join("")}
@@ -315,13 +315,13 @@ export function TeachersPage() {
                     <div className="flex gap-1">
                       <button
                         onClick={() => setEditing(t)}
-                        className="size-7 grid place-items-center rounded-lg hover:bg-stone-100 text-black/60"
+                        className="grid size-10 place-items-center rounded-lg text-black/60 hover:bg-stone-100 sm:size-8"
                       >
                         <Pencil className="size-3" />
                       </button>
                       <button
                         onClick={() => remove(t.id)}
-                        className="size-7 grid place-items-center rounded-lg hover:bg-red-50 text-red-600"
+                        className="grid size-10 place-items-center rounded-lg text-red-600 hover:bg-red-50 sm:size-8"
                       >
                         <Trash2 className="size-3" />
                       </button>
@@ -329,11 +329,13 @@ export function TeachersPage() {
                   )}
                 </div>
                 <div className="space-y-2 text-xs text-black/60">
-                  <div className="flex items-center gap-2">
-                    <Mail className="size-3.5" /> {t.email}
+                  <div className="flex min-w-0 items-start gap-2">
+                    <Mail className="mt-0.5 size-3.5 shrink-0" />
+                    <span className="min-w-0 break-all">{t.email}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="size-3.5" /> {t.phone}
+                  <div className="flex min-w-0 items-start gap-2">
+                    <Phone className="mt-0.5 size-3.5 shrink-0" />
+                    <span className="min-w-0 break-words">{t.phone}</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <BookOpen className="size-3.5 mt-0.5" />
@@ -353,7 +355,7 @@ export function TeachersPage() {
                   <div className="text-[10px] uppercase tracking-widest font-bold text-black/40 mb-2">Assigned Classes</div>
                   <div className="flex flex-wrap gap-1">
                     {teacherClasses.map((c) => (
-                      <span key={c.id} className="text-[10px] bg-stone-100 px-2 py-1 rounded-full font-medium">
+                      <span key={c.id} className="max-w-full break-words rounded-full bg-stone-100 px-2 py-1 text-[10px] font-medium">
                         {c.className}  {c?.department}
                       </span>
                     ))}

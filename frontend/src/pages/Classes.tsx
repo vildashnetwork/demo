@@ -405,11 +405,11 @@ export function ClassesPage() {
         <p className="text-sm text-black/60 mt-1">Cameroonian secondary structure · Forms 1–Upper 6th · Arts / Science / Commercial</p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6 items-start">
+      <div className="grid min-w-0 gap-6 items-start lg:grid-cols-2">
         {/* Classes Table */}
-        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden max-h-[620px] flex flex-col">
-          <div className="px-5 py-4 border-b border-stone-200 flex items-center justify-between">
-            <h3 className="font-display font-bold">
+        <div className="flex min-w-0 max-h-[620px] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 px-4 py-3 sm:px-5 sm:py-4">
+            <h3 className="min-w-0 flex-1 font-display font-bold">
               Classes ({filteredClasses.length}{hasClassFilters ? ` of ${classes.length}` : ""})
             </h3>
             {canEdit && (
@@ -418,14 +418,14 @@ export function ClassesPage() {
                   setEditingClass(null);
                   setShowNewClass(true);
                 }}
-                className="flex items-center gap-1 text-xs px-3 py-1.5 bg-brand text-white rounded-lg font-bold hover:bg-brand/90"
+                className="flex min-h-10 shrink-0 items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand/90"
               >
                 <Plus className="size-3.5" /> Class
               </button>
             )}
           </div>
 
-          <div className="px-5 py-3 border-b border-stone-200 space-y-2">
+          <div className="space-y-2 border-b border-stone-200 px-3 py-3 sm:px-5">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-black/40" />
               <input
@@ -448,7 +448,7 @@ export function ClassesPage() {
               <select
                 value={classDepartment}
                 onChange={(e) => setClassDepartment(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-stone-200 bg-white text-xs font-medium"
+                className="min-w-0 max-w-full flex-1 basis-[calc(50%-0.5rem)] rounded-xl border border-stone-200 bg-white px-2 py-2 text-xs font-medium sm:flex-none sm:basis-auto sm:px-3 sm:py-1.5"
               >
                 <option value="">All Departments</option>
                 {uniqueDepartments.map((d) => (
@@ -458,7 +458,7 @@ export function ClassesPage() {
               <select
                 value={classCycle}
                 onChange={(e) => setClassCycle(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-stone-200 bg-white text-xs font-medium"
+                className="min-w-0 max-w-full flex-1 basis-[calc(50%-0.5rem)] rounded-xl border border-stone-200 bg-white px-2 py-2 text-xs font-medium sm:flex-none sm:basis-auto sm:px-3 sm:py-1.5"
               >
                 <option value="">All Cycles</option>
                 {uniqueCycles.map((c) => (
@@ -468,7 +468,7 @@ export function ClassesPage() {
               <select
                 value={classYear}
                 onChange={(e) => setClassYear(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-stone-200 bg-white text-xs font-medium"
+                className="min-w-0 max-w-full flex-1 basis-[calc(50%-0.5rem)] rounded-xl border border-stone-200 bg-white px-2 py-2 text-xs font-medium sm:flex-none sm:basis-auto sm:px-3 sm:py-1.5"
               >
                 <option value="">All Years</option>
                 {uniqueYears.map((y) => (
@@ -478,15 +478,15 @@ export function ClassesPage() {
               {hasClassFilters && (
                 <button
                   onClick={clearClassFilters}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl border border-stone-200 font-semibold hover:bg-stone-50"
+                  className="flex min-h-10 shrink-0 items-center gap-1 rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-semibold hover:bg-stone-50"
                 >
                   <X className="size-3.5" /> Clear
                 </button>
               )}
             </div>
           </div>
-          <div className="overflow-auto max-h-[470px]">
-            <table className="w-full text-sm">
+          <div className="min-h-0 min-w-0 max-h-[470px] overflow-auto overscroll-contain">
+            <table className="w-full min-w-[680px] text-sm">
               <thead className="bg-stone-50 text-left text-[10px] uppercase tracking-widest text-black/50 font-bold sticky top-0 z-10">
                 <tr>
                   <th className="px-5 py-3">Class</th>
@@ -523,13 +523,13 @@ export function ClassesPage() {
                               setShowNewClass(false);
                               setEditingClass(c);
                             }}
-                            className="size-7 grid place-items-center rounded-lg hover:bg-stone-100 text-black/60"
+                            className="grid size-10 place-items-center rounded-lg text-black/60 hover:bg-stone-100 sm:size-8"
                           >
                             <Pencil className="size-3" />
                           </button>
                           <button
                             onClick={() => removeClass(c.id)}
-                            className="size-7 grid place-items-center rounded-lg hover:bg-red-50 text-red-600"
+                            className="grid size-10 place-items-center rounded-lg text-red-600 hover:bg-red-50 sm:size-8"
                           >
                             <Trash2 className="size-3" />
                           </button>
@@ -553,9 +553,9 @@ export function ClassesPage() {
         </div>
 
         {/* Subjects Table */}
-        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden max-h-[620px] flex flex-col">
-          <div className="px-5 py-4 border-b border-stone-200 flex items-center justify-between">
-            <h3 className="font-display font-bold">
+        <div className="flex min-w-0 max-h-[620px] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200 px-4 py-3 sm:px-5 sm:py-4">
+            <h3 className="min-w-0 flex-1 font-display font-bold">
               Subjects ({filteredSubjects.length}{hasSubjectFilters ? ` of ${subjects.length}` : ""})
             </h3>
             {canEdit && (
@@ -564,14 +564,14 @@ export function ClassesPage() {
                   setEditingSubject(null);
                   setShowNewSubject(true);
                 }}
-                className="flex items-center gap-1 text-xs px-3 py-1.5 bg-brand text-white rounded-lg font-bold hover:bg-brand/90"
+                className="flex min-h-10 shrink-0 items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand/90"
               >
                 <Plus className="size-3.5" /> Subject
               </button>
             )}
           </div>
 
-          <div className="px-5 py-3 border-b border-stone-200 space-y-2">
+          <div className="space-y-2 border-b border-stone-200 px-3 py-3 sm:px-5">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-black/40" />
               <input
@@ -594,7 +594,7 @@ export function ClassesPage() {
               <select
                 value={subjectCycle}
                 onChange={(e) => setSubjectCycle(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-stone-200 bg-white text-xs font-medium"
+                className="min-w-0 max-w-full flex-1 basis-[calc(50%-0.5rem)] rounded-xl border border-stone-200 bg-white px-2 py-2 text-xs font-medium sm:flex-none sm:basis-auto sm:px-3 sm:py-1.5"
               >
                 <option value="">All Cycles</option>
                 {uniqueSubjectCycles.map((c) => (
@@ -604,7 +604,7 @@ export function ClassesPage() {
               <select
                 value={subjectClassId}
                 onChange={(e) => setSubjectClassId(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-stone-200 bg-white text-xs font-medium"
+                className="min-w-0 max-w-full flex-1 basis-[calc(50%-0.5rem)] rounded-xl border border-stone-200 bg-white px-2 py-2 text-xs font-medium sm:flex-none sm:basis-auto sm:px-3 sm:py-1.5"
               >
                 <option value="">All Classes</option>
                 {classes.map((c) => (
@@ -614,7 +614,7 @@ export function ClassesPage() {
               <select
                 value={subjectTeacherId}
                 onChange={(e) => setSubjectTeacherId(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-stone-200 bg-white text-xs font-medium"
+                className="min-w-0 max-w-full flex-1 basis-[calc(50%-0.5rem)] rounded-xl border border-stone-200 bg-white px-2 py-2 text-xs font-medium sm:flex-none sm:basis-auto sm:px-3 sm:py-1.5"
               >
                 <option value="">All Teachers</option>
                 {teachers.map((t) => (
@@ -624,15 +624,15 @@ export function ClassesPage() {
               {hasSubjectFilters && (
                 <button
                   onClick={clearSubjectFilters}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl border border-stone-200 font-semibold hover:bg-stone-50"
+                  className="flex min-h-10 shrink-0 items-center gap-1 rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-semibold hover:bg-stone-50"
                 >
                   <X className="size-3.5" /> Clear
                 </button>
               )}
             </div>
           </div>
-          <div className="overflow-auto max-h-[470px]">
-            <table className="w-full text-sm">
+          <div className="min-h-0 min-w-0 max-h-[470px] overflow-auto overscroll-contain">
+            <table className="w-full min-w-[560px] text-sm">
               <thead className="bg-stone-50 text-left text-[10px] uppercase tracking-widest text-black/50 font-bold sticky top-0 z-10">
                 <tr>
                   <th className="px-5 py-3">Subject</th>
@@ -679,13 +679,13 @@ export function ClassesPage() {
                                 setShowNewSubject(false);
                                 setEditingSubject(s);
                               }}
-                              className="size-7 grid place-items-center rounded-lg hover:bg-stone-100 text-black/60"
+                              className="grid size-10 place-items-center rounded-lg text-black/60 hover:bg-stone-100 sm:size-8"
                             >
                               <Pencil className="size-3" />
                             </button>
                             <button
                               onClick={() => removeSubject(s.id)}
-                              className="size-7 grid place-items-center rounded-lg hover:bg-red-50 text-red-600"
+                              className="grid size-10 place-items-center rounded-lg text-red-600 hover:bg-red-50 sm:size-8"
                             >
                               <Trash2 className="size-3" />
                             </button>

@@ -444,15 +444,15 @@ export function SettingsPage() {
                   {savingClassRates ? t("Saving...") : t("Save Rates")}
                 </button>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {classes.map((schoolClass) => (
-                  <label key={schoolClass.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-100 bg-stone-50/70 px-3 py-2.5">
+                  <label key={schoolClass.id} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-stone-100 bg-stone-50/70 px-2 py-2.5 sm:gap-3 sm:px-3">
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold">{schoolClass.className} {t(schoolClass.department)}</span>
                       <span className="text-[11px] text-black/45">{t(schoolClass.cycle)}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      <input type="number" min={0} step={50} value={schoolClass.ratePerPeriod} onChange={(event) => setClasses((current) => current.map((item) => item.id === schoolClass.id ? { ...item, ratePerPeriod: Math.max(0, Number(event.target.value) || 0) } : item))} className="w-24 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-right text-sm font-semibold" aria-label={`${schoolClass.className} ${schoolClass.department} ${t("rate per period")}`} />
+                      <input type="number" min={0} step={50} value={schoolClass.ratePerPeriod} onChange={(event) => setClasses((current) => current.map((item) => item.id === schoolClass.id ? { ...item, ratePerPeriod: Math.max(0, Number(event.target.value) || 0) } : item))} className="w-20 rounded-lg border border-stone-200 bg-white px-1.5 py-1.5 text-right text-sm font-semibold sm:w-24 sm:px-2" aria-label={`${schoolClass.className} ${schoolClass.department} ${t("rate per period")}`} />
                       <span className="text-xs text-black/50">FRS</span>
                     </span>
                   </label>
@@ -473,12 +473,12 @@ export function SettingsPage() {
                   {savingTeacherRates ? t("Saving...") : t("Save Amounts")}
                 </button>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {users.filter((user) => user.role === "teacher").map((teacher) => (
-                  <label key={teacher.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-100 bg-stone-50/70 px-3 py-2.5">
-                    <span className="truncate text-sm font-semibold">{teacher.name}</span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <input type="number" min={0} step={1000} value={monthlySalaryDrafts[teacher.id] ?? 0} onChange={(event) => setMonthlySalaryDrafts((current) => ({ ...current, [teacher.id]: Math.max(0, Number(event.target.value) || 0) }))} className="w-28 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-right text-sm font-semibold" aria-label={`${teacher.name} monthly amount`} />
+                  <label key={teacher.id} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-stone-100 bg-stone-50/70 px-2 py-2.5 sm:gap-3 sm:px-3">
+                    <span className="block min-w-0 flex-1 truncate text-sm font-semibold">{teacher.name}</span>
+                    <span className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                      <input type="number" min={0} step={1000} value={monthlySalaryDrafts[teacher.id] ?? 0} onChange={(event) => setMonthlySalaryDrafts((current) => ({ ...current, [teacher.id]: Math.max(0, Number(event.target.value) || 0) }))} className="w-20 rounded-lg border border-stone-200 bg-white px-1.5 py-1.5 text-right text-sm font-semibold sm:w-28 sm:px-2" aria-label={`${teacher.name} monthly amount`} />
                       <span className="text-xs text-black/50">FRS</span>
                     </span>
                   </label>

@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen, ClipboardEdit,
   FileText, Wallet, Settings, LogOut, Menu, X, Bell, ArrowUpRight,
@@ -44,6 +44,15 @@ export function AppLayout() {
   const { t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [open, setOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const openMobileNavigation = () => {
+    setOpen(true);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+    });
+  };
 
   useEffect(() => {
     const u = currentUser();
@@ -51,30 +60,87 @@ export function AppLayout() {
     setUser(u);
   }, [navigate]);
 
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const focusableElements = sidebarRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusableElements?.length) return;
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+      menuButtonRef.current?.focus();
+    };
+  }, [open]);
+
   const items = useMemo(() => user ? NAV.filter((n) => n.roles.includes(user.role)) : [], [user]);
 
   if (!user) return null;
 
   return (
     <div className="min-h-screen bg-stone-50 font-sans text-[#121212] flex">
-      <button
-        onClick={() => setOpen(!open)}
-        className="lg:hidden fixed top-4 left-4 z-50 bg-[#121212] text-white p-2 rounded-lg shadow-lg"
-      >
-        {open ? <X className="size-5" /> : <Menu className="size-5" />}
-      </button>
+      {open && (
+        <div
+          aria-hidden="true"
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[1px] lg:hidden"
+        />
+      )}
 
-      <aside className={`fixed lg:sticky top-0 left-0 z-40 h-screen w-64 bg-[#121212] text-white flex flex-col transition-transform ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
-        <div className="p-6 flex items-center gap-3 border-b border-white/5">
+      <aside
+        ref={sidebarRef}
+        id="app-sidebar"
+        role={open ? "dialog" : undefined}
+        aria-modal={open ? true : undefined}
+        aria-label="Main navigation"
+        className={`fixed inset-y-0 left-0 z-50 flex h-[100dvh] max-h-[100dvh] w-[min(20rem,calc(100vw-1.25rem))] flex-col bg-[#121212] text-white shadow-2xl transition-[transform,visibility] duration-300 ease-out lg:sticky lg:top-0 lg:z-40 lg:h-screen lg:w-64 lg:max-h-none lg:translate-x-0 lg:shadow-none ${open ? "visible translate-x-0" : "invisible -translate-x-full lg:visible"}`}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/5 px-4 py-4 sm:p-6">
           <div className="size-9 bg-brand rounded-lg grid place-items-center">
             <GraduationCap className="size-4 text-white" />
           </div>
-          <div>
-            <div className="font-display font-bold uppercase tracking-tight">BCHS DOUALA</div>
-            <div className="text-[10px] text-white/40 uppercase tracking-widest">{t("SCHOOL PORTAL")}</div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-display font-bold uppercase tracking-tight">BCHS DOUALA</div>
+            <div className="truncate text-[10px] text-white/40 uppercase tracking-widest">{t("SCHOOL PORTAL")}</div>
           </div>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            aria-label="Close navigation menu"
+            onClick={() => setOpen(false)}
+            className="grid size-10 shrink-0 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand lg:hidden"
+          >
+            <X className="size-5" />
+          </button>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav aria-label="Primary" className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-3 sm:py-4">
           {items.map((item) => {
             const translatedLabel = item.label;
             return (
@@ -91,7 +157,7 @@ export function AppLayout() {
             );
           })}
         </nav>
-        <div className="p-4 border-t border-white/5">
+        <div className="shrink-0 border-t border-white/5 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="flex items-center gap-3 mb-3">
             <div className="size-9 bg-brand/20 text-brand rounded-full grid place-items-center font-bold text-sm">
               {user.name.slice(0, 1)}
@@ -110,14 +176,28 @@ export function AppLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0">
-        <header className="sticky top-0 z-30 h-16 bg-white border-b border-stone-200 px-6 lg:px-8 flex items-center justify-between">
-          <div className="pl-10 lg:pl-0">
-            <div className="text-xs text-black/40 font-medium">BCHS DOUALA · {t("School Portal")}</div>
-            <div className="text-sm font-semibold">{getPageTitle(pathname)}</div>
+      <main className="min-w-0 flex-1" inert={open}>
+        <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b border-stone-200 bg-white px-3 py-2 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <button
+              ref={menuButtonRef}
+              type="button"
+              aria-label="Open navigation menu"
+              aria-expanded={open}
+              aria-controls="app-sidebar"
+              aria-haspopup="dialog"
+              onClick={openMobileNavigation}
+              className="grid size-10 shrink-0 place-items-center rounded-lg border border-stone-200 text-stone-700 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand lg:hidden"
+            >
+              <Menu className="size-5" />
+            </button>
+            <div className="min-w-0">
+              <div className="truncate text-[10px] font-medium text-black/45 sm:text-xs">BCHS DOUALA · {t("School Portal")}</div>
+              <div className="truncate text-sm font-semibold">{getPageTitle(pathname)}</div>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button className="size-9 grid place-items-center rounded-lg border border-stone-200 hover:bg-stone-50">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <button type="button" aria-label="Notifications" className="grid size-9 place-items-center rounded-lg border border-stone-200 hover:bg-stone-50">
               <Bell className="size-4" />
             </button>
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-stone-100 rounded-full">
@@ -126,7 +206,7 @@ export function AppLayout() {
             </div>
           </div>
         </header>
-        <div className="p-6 lg:p-8"><Outlet /></div>
+        <div className="px-3 py-4 sm:p-6 lg:p-8"><Outlet /></div>
       </main>
     </div>
   );

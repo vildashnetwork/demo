@@ -427,16 +427,16 @@ function Kpi({
   tone?: "brand";
 }) {
   return (
-    <div className={`p-5 rounded-2xl border shadow-sm ${tone === "brand" ? "bg-brand text-white border-brand" : "bg-white border-stone-200"
+    <div className={`min-w-0 p-3 sm:p-5 rounded-2xl border shadow-sm ${tone === "brand" ? "bg-brand text-white border-brand" : "bg-white border-stone-200"
       }`}>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
         <p className={`text-[10px] font-bold uppercase tracking-widest ${tone === "brand" ? "text-white/70" : "text-black/40"
           }`}>
           {label}
         </p>
-        <Icon className={`size-4 ${tone === "brand" ? "text-white/80" : "text-black/30"}`} />
+        <Icon className={`size-4 shrink-0 ${tone === "brand" ? "text-white/80" : "text-black/30"}`} />
       </div>
-      <p className="font-display text-3xl font-extrabold tracking-tight">{value}</p>
+      <p className="min-w-0 break-words font-display text-lg leading-tight font-extrabold tracking-tight sm:text-2xl lg:text-3xl">{value}</p>
       <p className={`mt-1 text-[11px] font-semibold ${tone === "brand" ? "text-white/70" : "text-brand"
         }`}>
         {hint}

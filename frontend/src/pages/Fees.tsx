@@ -461,37 +461,37 @@ export function FeesPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-brand text-white p-5 rounded-2xl">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+        <div className="min-w-0 rounded-2xl bg-brand p-3 text-white sm:p-5">
           <Wallet className="size-5 mb-3 opacity-80" />
           <div className="text-[10px] uppercase tracking-widest font-bold opacity-80">Collected</div>
-          <div className="font-display text-2xl font-extrabold mt-1">{stats.totalPaid.toLocaleString()} XAF</div>
+          <div className="mt-1 break-words font-display text-lg font-extrabold sm:text-2xl">{stats.totalPaid.toLocaleString()} XAF</div>
           <div className="text-xs opacity-80 mt-1">{stats.fullyPaidCount} fully paid</div>
         </div>
 
-        <div className="bg-white border border-stone-200 p-5 rounded-2xl">
+        <div className="min-w-0 rounded-2xl border border-stone-200 bg-white p-3 sm:p-5">
           <AlertTriangle className="size-5 mb-3 text-red-500" />
           <div className="text-[10px] uppercase tracking-widest font-bold text-black/40">Outstanding</div>
-          <div className="font-display text-2xl font-extrabold mt-1 text-red-600">{stats.totalDue.toLocaleString()} XAF</div>
+          <div className="mt-1 break-words font-display text-lg font-extrabold text-red-600 sm:text-2xl">{stats.totalDue.toLocaleString()} XAF</div>
           <div className="text-xs text-black/50 mt-1">{stats.debtorsCount} students owe</div>
         </div>
 
-        <div className="bg-white border border-stone-200 p-5 rounded-2xl">
+        <div className="min-w-0 rounded-2xl border border-stone-200 bg-white p-3 sm:p-5">
           <div className="text-[10px] uppercase tracking-widest font-bold text-black/40">Collection Rate</div>
-          <div className="font-display text-2xl font-extrabold mt-1">{stats.collectionRate.toFixed(1)}%</div>
+          <div className="mt-1 break-words font-display text-lg font-extrabold sm:text-2xl">{stats.collectionRate.toFixed(1)}%</div>
           <div className="text-xs text-black/50 mt-1">{stats.totalStudents} total students</div>
         </div>
 
-        <div className="bg-white border border-stone-200 p-5 rounded-2xl">
+        <div className="min-w-0 rounded-2xl border border-stone-200 bg-white p-3 sm:p-5">
           <div className="text-[10px] uppercase tracking-widest font-bold text-black/40">Average Due</div>
-          <div className="font-display text-2xl font-extrabold mt-1">{stats.averageDue.toLocaleString()} XAF</div>
+          <div className="mt-1 break-words font-display text-lg font-extrabold sm:text-2xl">{stats.averageDue.toLocaleString()} XAF</div>
           <div className="text-xs text-black/50 mt-1">per student</div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="grid min-w-0 gap-3 rounded-2xl border border-stone-200 bg-white p-3 sm:flex sm:flex-wrap sm:items-center sm:p-4">
+        <div className="relative min-w-0 w-full sm:flex-1 sm:basis-[200px]">
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-black/40" />
           <input
             value={searchTerm}
@@ -501,23 +501,23 @@ export function FeesPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex min-w-0 items-center gap-2 text-sm">
           <Filter className="size-4 text-black/40" />
           <select
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium"
+            className="min-w-0 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium sm:w-auto sm:max-w-[220px]"
           >
             <option value="all">All classes</option>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.className}</option>)}
           </select>
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex min-w-0 items-center gap-2 text-sm">
           <select
             value={feeFilter}
             onChange={(e) => setFeeFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium"
+            className="min-w-0 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium sm:w-auto"
           >
             <option value="all">All Students</option>
             <option value="fully-paid">Fully Paid</option>
@@ -526,14 +526,14 @@ export function FeesPage() {
           </select>
         </div>
 
-        <div className="flex gap-2 ml-auto">
-          <button onClick={printDebtors} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
+        <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto">
+          <button onClick={printDebtors} className="col-span-2 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-700 sm:col-span-1 sm:w-auto sm:px-4">
             <Printer className="size-4" /> Print Debtors
           </button>
-          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold hover:bg-stone-50">
+          <button onClick={exportCSV} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-stone-50 sm:w-auto sm:px-4">
             <Download className="size-4" /> CSV
           </button>
-          <button onClick={exportPDF} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold hover:bg-stone-50">
+          <button onClick={exportPDF} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-stone-50 sm:w-auto sm:px-4">
             <FileText className="size-4" /> PDF
           </button>
         </div>
@@ -557,7 +557,7 @@ export function FeesPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[1080px] text-sm">
             <thead className="bg-stone-50 text-left text-[10px] uppercase tracking-widest text-black/50 font-bold">
               <tr>
                 <th className="px-5 py-3">Student</th>

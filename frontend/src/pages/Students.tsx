@@ -538,18 +538,18 @@ export function StudentsPage() {
           <h1 className="font-display text-3xl font-extrabold tracking-tight">Students</h1>
           <p className="text-sm text-black/60 mt-1">{students.length} total · {filtered.length} shown</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={printOwingStudents} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold hover:bg-stone-50">
+        <div className="flex w-full gap-2 sm:w-auto">
+          <button onClick={printOwingStudents} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-stone-50 sm:flex-none sm:px-4">
             <Printer className="size-4" /> Print Owing
           </button>
-          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold hover:bg-stone-50">
+          <button onClick={exportCSV} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-stone-50 sm:flex-none sm:px-4">
             <Download className="size-4" /> CSV
           </button>
           {/* <button onClick={exportPDF} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold hover:bg-stone-50">
             <FileText className="size-4" /> PDF
           </button> */}
           {canEdit && (
-            <button onClick={() => setShowNew(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90">
+            <button onClick={() => setShowNew(true)} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-3 py-2.5 text-sm font-semibold text-white hover:bg-brand/90 sm:flex-none sm:px-4">
               <Plus className="size-4" /> Add Student
             </button>
           )}
@@ -557,8 +557,8 @@ export function StudentsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="grid min-w-0 gap-3 rounded-2xl border border-stone-200 bg-white p-3 sm:flex sm:flex-wrap sm:items-center sm:p-4">
+        <div className="relative min-w-0 w-full sm:flex-1 sm:basis-[200px]">
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-black/40" />
           <input
             value={q}
@@ -567,15 +567,15 @@ export function StudentsPage() {
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand text-sm"
           />
         </div>
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex min-w-0 items-center gap-2 text-sm">
           <Filter className="size-4 text-black/40" />
-          <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="px-3 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium">
+          <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="min-w-0 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium sm:w-auto sm:max-w-[220px]">
             <option value="all">All classes</option>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.className + " " + c.department}</option>)}
           </select>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <select value={feeStatusFilter} onChange={(e) => setFeeStatusFilter(e.target.value)} className="px-3 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium">
+        <div className="flex min-w-0 items-center gap-2 text-sm">
+          <select value={feeStatusFilter} onChange={(e) => setFeeStatusFilter(e.target.value)} className="min-w-0 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium sm:w-auto">
             <option value="all">All Fees</option>
             <option value="paid">Fully Paid</option>
             <option value="partial">Partial Payment</option>
@@ -587,7 +587,7 @@ export function StudentsPage() {
       {/* Table */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-stone-50 text-left text-[10px] uppercase tracking-widest text-black/50 font-bold">
               <tr>
                 <th className="px-5 py-3">Name</th>

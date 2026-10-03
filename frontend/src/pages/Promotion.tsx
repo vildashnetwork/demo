@@ -598,7 +598,7 @@ export function PromotionPage() {
             setSelectedAcademicYear(e.target.value);
             setClassId("");
           }}
-          className="px-3 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium"
+          className="min-w-0 w-full max-w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium sm:w-auto"
         >
           <option value="">All Academic Years</option>
           {academicYears.map((year) => (
@@ -609,7 +609,7 @@ export function PromotionPage() {
         <select
           value={classId}
           onChange={(e) => setClassId(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium"
+          className="min-w-0 w-full max-w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium sm:w-auto"
         >
           <option value="">Select Class</option>
           {filteredClasses.map((c) => (
@@ -620,7 +620,7 @@ export function PromotionPage() {
         <select
           value={selectedTerm}
           onChange={(e) => setSelectedTerm(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium"
+          className="min-w-0 w-full max-w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium sm:w-auto"
         >
           {TERMS.map((t) => (
             <option key={t.id} value={t.id}>{t.label}</option>
