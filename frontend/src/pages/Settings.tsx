@@ -120,6 +120,7 @@ export function SettingsPage() {
   };
 
   useEffect(() => {
+    setActiveTab("school");
     fetchUsers();
     fetchSchoolSettings();
   }, [section]);
@@ -462,7 +463,7 @@ export function SettingsPage() {
                 {classes.map((schoolClass) => (
                   <label key={schoolClass.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-100 bg-stone-50/70 px-3 py-2.5">
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold">{schoolClass.className} {schoolClass.department}</span>
+                      <span className="block truncate text-sm font-semibold">{schoolClass.className} {t(schoolClass.department)}</span>
                       <span className="text-[11px] text-black/45">{t(schoolClass.cycle)}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-2">

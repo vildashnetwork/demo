@@ -40,57 +40,10 @@ const NAV: NavItem[] = [
   { to: "/app/settings", label: "School Settings", icon: Settings, roles: ["super_admin", "admin"] },
 ];
 
-function getNavText(section: SchoolSection) {
-  return section === "francophone"
-    ? {
-      dashboard: "Tableau de bord",
-      students: "Élèves",
-      studentIdCards: "Cartes d’identités",
-      teachers: "Enseignants",
-      classes: "Classes & matières",
-      markEntry: "Saisie des notes",
-      studentAttendance: "Présence des élèves",
-      teacherTimetable: "Emploi du temps enseignant",
-      teacherAttendance: "Présence enseignants",
-      reportCards: "Bulletins",
-      bulkReportCards: "Bulletins en masse",
-      classLists: "Listes de classes",
-      promotion: "Promotion",
-      fees: "Frais & finance",
-      teacherSalaries: "Salaires enseignants",
-      timetable: "Emploi du temps",
-      settings: "Paramètres de l’école",
-      overview: "Vue d’ensemble",
-      signOut: "Déconnexion",
-    }
-    : {
-      dashboard: "Dashboard",
-      students: "Students",
-      studentIdCards: "ID Cards",
-      teachers: "Teachers",
-      classes: "Classes & Subjects",
-      markEntry: "Mark Entry",
-      studentAttendance: "Student Attendance",
-      teacherTimetable: "Teacher Timetable",
-      teacherAttendance: "Teacher Attendance",
-      reportCards: "Report Cards",
-      bulkReportCards: "Bulk Report Cards",
-      classLists: "Class Lists",
-      promotion: "Promotion",
-      fees: "Fees & Finance",
-      teacherSalaries: "Teacher Salaries",
-      timetable: "Timetable",
-      settings: "School Settings",
-      overview: "Overview Dashboard",
-      signOut: "Sign out",
-    };
-}
-
 export function AppLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { section, t } = useLanguage();
-  const navText = getNavText(section);
   const [user, setUser] = useState<User | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -125,25 +78,7 @@ export function AppLayout() {
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {items.map((item) => {
-            const translatedLabel = section === "francophone"
-              ? item.to === "/app" ? navText.dashboard :
-                item.to === "/app/students" ? navText.students :
-                  item.to === "/app/student-id-cards" ? navText.studentIdCards :
-                    item.to === "/app/teachers" ? navText.teachers :
-                      item.to === "/app/classes" ? navText.classes :
-                        item.to === "/app/mark-entry" ? navText.markEntry :
-                          item.to === "/app/student-attendance" ? navText.studentAttendance :
-                            item.to === "/app/teacher-timetable" ? navText.teacherTimetable :
-                              item.to === "/app/teacher-attendance" ? navText.teacherAttendance :
-                                item.to === "/app/report-cards" ? navText.reportCards :
-                                  item.to === "/app/report-cards/bulk" ? navText.bulkReportCards :
-                                    item.to === "/app/class-lists" ? navText.classLists :
-                                      item.to === "/app/promotion" ? navText.promotion :
-                                        item.to === "/app/fees" ? navText.fees :
-                                          item.to === "/app/teacher-salaries" ? navText.teacherSalaries :
-                                            item.to === "/app/timetable" ? navText.timetable :
-                                              item.to === "/app/settings" ? navText.settings : item.label
-              : item.label;
+            const translatedLabel = section === "francophone" ? t(item.label) : item.label;
             return (
               <NavLink
                 key={item.to}
@@ -172,7 +107,7 @@ export function AppLayout() {
             onClick={() => { logout(); navigate("/login"); }}
             className="w-full flex items-center justify-center gap-2 text-xs font-bold text-white/60 hover:text-white border border-white/10 hover:border-white/30 py-2 rounded-lg transition-colors"
           >
-            <LogOut className="size-3.5" /> {navText.signOut}
+            <LogOut className="size-3.5" /> {t("Sign out")}
           </button>
         </div>
       </aside>
@@ -194,7 +129,7 @@ export function AppLayout() {
                     if (option === section) return;
                     setStoredSchoolSection(option);
                   }}
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${section === option ? "bg-white text-brand shadow-sm" : "text-black/55 hover:text-black"}`}
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${section === option ? "bg-brand text-white shadow-sm" : "text-black/55 hover:text-black"}`}
                 >
                   {option === "englophone" ? t("Anglophone") : t("Francophone")}
                 </button>
