@@ -14,6 +14,9 @@ import { runSync } from "./syncService.js";
 
 const ONLINE_URI = process.env.MONGOURI;
 const OFFLINE_URI = process.env.MONGOURIOFFLINE || 'mongodb://127.0.0.1:27017/DEMO_OFFLINE';
+const OFFLINE_DB_ENABLED = String(
+    process.env.OFFLINE_DB_ENABLED ?? (process.env.RENDER ? 'false' : 'true')
+).trim().toLowerCase() === 'true';
 const CONFIGURED_DB_MODE = String(process.env.DB_MODE || '').trim().toLowerCase();
 const PREFER_OFFLINE = CONFIGURED_DB_MODE === 'offline';
 
@@ -139,7 +142,7 @@ class DbManager {
         this.syncing = false;
         this.onlineHosts = [];         // resolved Atlas hosts for reachability probes
         this.standardUriCache = null;  // cached SRV -> standard URI conversion
-        this.offlineAvailable = true;
+        this.offlineAvailable = OFFLINE_DB_ENABLED;
         this.offlineFailures = 0;
         this.monitorTimer = null;
         this.lastSync = null;          // last successful sync result
@@ -176,6 +179,9 @@ class DbManager {
     }
 
     async connectOffline() {
+        if (!this.offlineAvailable) {
+            throw new Error('Offline MongoDB is disabled. Set OFFLINE_DB_ENABLED=true to enable it.');
+        }
         await mongoose.connect(OFFLINE_URI, OFFLINE_CONNECT_OPTIONS);
     }
 
@@ -229,6 +235,10 @@ class DbManager {
             throw new Error('MONGOURI environment variable is not defined. Add it to your .env file.');
         }
 
+        if (!this.offlineAvailable) {
+            console.log('☁️ Offline MongoDB mirror disabled; running online-only.');
+        }
+
         // With a local fallback available we fail over fast.
         const maxAttempts = 2;
         let lastErr = null;
@@ -263,7 +273,7 @@ class DbManager {
 
         // Start the initial mirror refresh without delaying the API listener.
         // The sync remains serialized with periodic and failover sync cycles.
-        if (this.mode === 'online') void this.runSyncCycle('startup');
+        if (this.mode === 'online' && this.offlineAvailable) void this.runSyncCycle('startup');
 
         return this.getStatus();
     }
@@ -297,6 +307,10 @@ class DbManager {
     }
 
     async switchToOffline() {
+        if (!this.offlineAvailable) {
+            console.warn('⚠️ Offline mode is disabled; staying on the online database.');
+            return;
+        }
         if (this.switching) return;
         this.switching = true;
         try {
@@ -391,7 +405,7 @@ class DbManager {
             } else {
                 this.offlineFailures += 1;
                 console.warn(`⚠️ Online database unreachable (${this.offlineFailures}/2)...`);
-                if (this.offlineFailures >= 2) await this.switchToOffline();
+                if (this.offlineFailures >= 2 && this.offlineAvailable) await this.switchToOffline();
             }
         } else if (this.mode === 'offline') {
             if (reachable) await this.switchToOnline();
