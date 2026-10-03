@@ -25,7 +25,7 @@ const studentAttendanceSchema = new mongoose.Schema({
     },
     section: {
         type: String,
-        enum: ["englophone", "francophone"],
+        enum: ["englophone"],
         default: "englophone",
         trim: true
     },
@@ -109,7 +109,7 @@ studentAttendanceSchema.statics.buildMatch = function ({
     studentIds, classId, academicYear, term, from, to, status, period, section
 } = {}) {
     const match = {};
-    if (section === "englophone" || section === "francophone") match.section = section;
+    if (section) match.section = "englophone";
     if (studentIds) match.studentId = { $in: Array.isArray(studentIds) ? studentIds : [studentIds] };
     if (classId) match.classId = classId;
     if (academicYear && academicYear !== "all") match.academicYear = academicYear;

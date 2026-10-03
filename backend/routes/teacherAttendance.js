@@ -224,7 +224,7 @@ router.post('/attendance', async (req, res) => {
       periodsTaught: periodsTaught || 0,
       notes,
       academicYear: academicYear || '2024-2025',
-      section: req.get('x-school-section') || req.body.section || 'englophone',
+      section: 'englophone',
       term: term || 'first'
     });
 
@@ -285,7 +285,7 @@ router.post('/attendance/bulk', async (req, res) => {
           periodsTaught: periodsTaught || 0,
           notes,
           academicYear: record.academicYear || '2024-2025',
-          section: req.get('x-school-section') || record.section || 'englophone',
+          section: 'englophone',
           term: record.term || 'first'
         });
 
@@ -334,7 +334,7 @@ router.put('/attendance/:id', async (req, res) => {
     }
 
     Object.assign(attendance, updates);
-    attendance.section = req.get('x-school-section') || updates.section || attendance.section;
+    attendance.section = 'englophone';
     attendance.updatedAt = new Date();
     await attendance.save();
 

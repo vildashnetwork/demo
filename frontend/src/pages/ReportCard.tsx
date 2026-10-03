@@ -298,6 +298,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Printer, ArrowLeft, GraduationCap, Download, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { getStoredSchoolSection } from "@/lib/schoolSystem";
 import axios from "axios";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -662,29 +663,7 @@ export function ReportCard() {
   }
 
   const { student, cls, rows, avg, totalPoints, totalCoef, position, classSize, classGeneralAvg, term } = data;
-  const isFrancophoneMode = getStoredSchoolSection() === "francophone";
-  const labels = isFrancophoneMode ? {
-    student: "Élève",
-    admission: "N° d’admission",
-    className: "Classe",
-    section: "Section",
-    sex: "Sexe",
-    dob: "Date de naissance",
-    classSize: "Effectif",
-    position: "Rang",
-    average: "Moyenne /20",
-    classAvg: "Moy. classe",
-    grade: "Mention",
-    status: "Décision",
-    subject: "Matière",
-    score: "Note",
-    coef: "Coef",
-    total: "Total",
-    remark: "Appréciation",
-    term: "Période",
-    approved: "Admis",
-    repeat: "Redoublant",
-  } : {
+  const labels = {
     student: "Student",
     admission: "Admission №",
     className: "Class",
@@ -779,7 +758,7 @@ export function ReportCard() {
               <Info label={labels.admission} value={student.admissionNumber || "N/A"} />
               <Info label={labels.className} value={cls.className} />
               <Info label={labels.section} value={student.department} />
-              <Info label={labels.sex} value={student.gender === "male" ? (isFrancophoneMode ? "Masculin" : "Male") : (isFrancophoneMode ? "Féminin" : "Female")} />
+              <Info label={labels.sex} value={student.gender === "male" ? "Male" : "Female"} />
               <Info label={labels.dob} value={student.dob} />
               <Info label={labels.classSize} value={String(classSize)} />
               <Info label={labels.position} value={position ? `${ordinal(position)} / ${classSize}` : "—"} />

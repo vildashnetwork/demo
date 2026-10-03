@@ -14,7 +14,7 @@ const counterSchema = new mongoose.Schema({
     },
     section: {
         type: String,
-        enum: ["englophone", "francophone"],
+        enum: ["englophone"],
         default: "englophone",
         trim: true
     },

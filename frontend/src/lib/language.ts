@@ -99,7 +99,6 @@ const frenchTranslations: Record<string, string> = {
     "Payment": "Paiement",
     "Settings": "Paramètres",
     "School System": "Système scolaire",
-    "Francophone": "Francophone",
     "Anglophone": "Anglophone",
     "English": "Anglais",
     "French": "Français",
@@ -393,12 +392,8 @@ const frenchTranslations: Record<string, string> = {
     "Record created successfully": "Enregistrement créé avec succès",
     "Record updated successfully": "Enregistrement mis à jour avec succès",
     "Record deleted successfully": "Enregistrement supprimé avec succès",
-    "Configure the school calendar, teacher pay, and user access.": "Configurez le calendrier scolaire, la rémunération des enseignants et les accès utilisateurs.",
     "School Setup": "Configuration de l’école",
     "User Management": "Gestion des utilisateurs",
-    "School Schedule & Pay Mode": "Calendrier scolaire et mode de rémunération",
-    "Settings apply to the selected academic year.": "Les paramètres s’appliquent à l’année scolaire sélectionnée.",
-    "Saving...": "Enregistrement...",
     "Save School Settings": "Enregistrer les paramètres scolaires",
     "School Starts": "Début des cours",
     "School Ends": "Fin des cours",
@@ -406,7 +401,6 @@ const frenchTranslations: Record<string, string> = {
     "Break Ends": "Fin de la pause",
     "Period Duration (minutes)": "Durée d’une période (minutes)",
     "Teacher Payment": "Rémunération des enseignants",
-    "School Days": "Jours de classe",
     "Rate Per Period by Class": "Tarif par période et par classe",
     "Hourly payroll uses the rate attached to each scheduled class.": "La paie horaire utilise le tarif associé à chaque classe de l’emploi du temps.",
     "Save Rates": "Enregistrer les tarifs",
@@ -448,15 +442,8 @@ const frenchTranslations: Record<string, string> = {
     "Failed to update user": "Échec de la mise à jour de l’utilisateur",
     "Failed to delete user": "Échec de la suppression de l’utilisateur",
     "Failed to fetch users": "Échec du chargement des utilisateurs",
-    "Failed to load school settings": "Échec du chargement des paramètres scolaires",
-    "Could not save school settings": "Impossible d’enregistrer les paramètres scolaires",
-    "Class period rates saved": "Tarifs par période enregistrés",
     "Could not save class period rates": "Impossible d’enregistrer les tarifs par période",
-    "Enter a positive monthly amount for every teacher": "Saisissez un montant mensuel positif pour chaque enseignant",
-    "Monthly teacher amounts saved": "Salaires mensuels des enseignants enregistrés",
     "Could not save teacher monthly amounts": "Impossible d’enregistrer les salaires mensuels des enseignants",
-    "Are you sure you want to delete": "Voulez-vous vraiment supprimer",
-    "User deleted successfully": "Utilisateur supprimé avec succès",
     "teacher": "enseignant",
     "admin": "administrateur",
     "bursar": "comptable",
@@ -805,7 +792,8 @@ const dictionary: Record<Language, Record<string, string>> = {
 };
 
 export function languageForSection(section: SchoolSection): Language {
-    return section === "francophone" ? "fr" : "en";
+    void section;
+    return "en";
 }
 
 export function translateText(value: string, language: Language): string {

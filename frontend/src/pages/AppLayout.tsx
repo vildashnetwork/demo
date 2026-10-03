@@ -6,8 +6,6 @@ import {
   Calendar, DollarSign, Download, IdCard,
 } from "lucide-react";
 import { currentUser, logout } from "@/lib/auth";
-import { setStoredSchoolSection } from "@/lib/schoolSystem";
-import type { SchoolSection } from "@/lib/schoolSystem";
 import { useLanguage } from "@/lib/language";
 import type { User, Role } from "@/lib/types";
 
@@ -43,7 +41,7 @@ const NAV: NavItem[] = [
 export function AppLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { section, t } = useLanguage();
+  const { t } = useLanguage();
   const [user, setUser] = useState<User | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -78,7 +76,7 @@ export function AppLayout() {
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {items.map((item) => {
-            const translatedLabel = section === "francophone" ? t(item.label) : item.label;
+            const translatedLabel = item.label;
             return (
               <NavLink
                 key={item.to}
@@ -116,25 +114,9 @@ export function AppLayout() {
         <header className="sticky top-0 z-30 h-16 bg-white border-b border-stone-200 px-6 lg:px-8 flex items-center justify-between">
           <div className="pl-10 lg:pl-0">
             <div className="text-xs text-black/40 font-medium">BCHS DOUALA · {t("School Portal")}</div>
-            <div className="text-sm font-semibold">{getPageTitle(pathname, section)}</div>
+            <div className="text-sm font-semibold">{getPageTitle(pathname)}</div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-1" aria-label={t("School System")}>
-              {(["englophone", "francophone"] as SchoolSection[]).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={section === option}
-                  onClick={() => {
-                    if (option === section) return;
-                    setStoredSchoolSection(option);
-                  }}
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${section === option ? "bg-brand text-white shadow-sm" : "text-black/55 hover:text-black"}`}
-                >
-                  {option === "englophone" ? t("Anglophone") : t("Francophone")}
-                </button>
-              ))}
-            </div>
             <button className="size-9 grid place-items-center rounded-lg border border-stone-200 hover:bg-stone-50">
               <Bell className="size-4" />
             </button>
@@ -150,22 +132,21 @@ export function AppLayout() {
   );
 }
 
-function getPageTitle(p: string, section: SchoolSection) {
-  const isFrancophoneMode = section === "francophone";
-  if (p === "/app") return isFrancophoneMode ? "Vue d’ensemble" : "Overview Dashboard";
-  if (p.startsWith("/app/students")) return isFrancophoneMode ? "Élèves" : "Students";
-  if (p.startsWith("/app/student-id-cards")) return isFrancophoneMode ? "Cartes d’identités" : "ID Cards";
-  if (p.startsWith("/app/teachers")) return isFrancophoneMode ? "Enseignants" : "Teachers";
-  if (p.startsWith("/app/teacher-attendance")) return isFrancophoneMode ? "Présence enseignants" : "Teacher Attendance";
-  if (p.startsWith("/app/teacher-salaries")) return isFrancophoneMode ? "Salaires enseignants" : "Teacher Salaries";
-  if (p.startsWith("/app/teacher-timetable")) return isFrancophoneMode ? "Emploi du temps enseignant" : "Teacher Timetable";
-  if (p.startsWith("/app/classes")) return isFrancophoneMode ? "Classes & matières" : "Classes & Subjects";
-  if (p.startsWith("/app/mark-entry")) return isFrancophoneMode ? "Saisie des notes" : "Mark Entry";
-  if (p.startsWith("/app/student-attendance")) return isFrancophoneMode ? "Présence des élèves" : "Student Attendance";
-  if (p.startsWith("/app/report-cards")) return isFrancophoneMode ? "Bulletins" : "Report Cards";
-  if (p.startsWith("/app/class-lists")) return isFrancophoneMode ? "Listes de classes" : "Class Lists";
-  if (p.startsWith("/app/promotion")) return isFrancophoneMode ? "Promotion" : "Promotion";
-  if (p.startsWith("/app/fees")) return isFrancophoneMode ? "Frais & finance" : "Fees & Finance";
-  if (p.startsWith("/app/settings")) return isFrancophoneMode ? "Paramètres de l’école" : "School Settings";
+function getPageTitle(p: string) {
+  if (p === "/app") return "Overview Dashboard";
+  if (p.startsWith("/app/students")) return "Students";
+  if (p.startsWith("/app/student-id-cards")) return "ID Cards";
+  if (p.startsWith("/app/teachers")) return "Teachers";
+  if (p.startsWith("/app/teacher-attendance")) return "Teacher Attendance";
+  if (p.startsWith("/app/teacher-salaries")) return "Teacher Salaries";
+  if (p.startsWith("/app/teacher-timetable")) return "Teacher Timetable";
+  if (p.startsWith("/app/classes")) return "Classes & Subjects";
+  if (p.startsWith("/app/mark-entry")) return "Mark Entry";
+  if (p.startsWith("/app/student-attendance")) return "Student Attendance";
+  if (p.startsWith("/app/report-cards")) return "Report Cards";
+  if (p.startsWith("/app/class-lists")) return "Class Lists";
+  if (p.startsWith("/app/promotion")) return "Promotion";
+  if (p.startsWith("/app/fees")) return "Fees & Finance";
+  if (p.startsWith("/app/settings")) return "School Settings";
   return "BCHS DOUALA";
 }

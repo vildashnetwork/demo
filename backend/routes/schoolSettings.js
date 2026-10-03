@@ -124,13 +124,6 @@ router.post("/settings", async (req, res) => {
       });
     }
 
-    if (activeSection && !["englophone", "francophone"].includes(activeSection)) {
-      return res.status(400).json({
-        success: false,
-        message: "School system must be either anglophone or francophone",
-      });
-    }
-
     const updates = {
       schoolStartTime,
       schoolEndTime,
@@ -149,7 +142,7 @@ router.post("/settings", async (req, res) => {
       ...(teacherPaymentMode ? { teacherPaymentMode } : {}),
     };
 
-    // Upsert by academic year and stream so Anglophone and Francophone settings remain separate.
+    // Keep one settings document per academic year.
     const settings = await SchoolSettings.findOneAndUpdate(
       { academicYear, section: activeSection },
       updates,

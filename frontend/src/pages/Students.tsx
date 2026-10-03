@@ -14,7 +14,7 @@ interface Student {
   id: string;
   fullName: string;
   gender: string;
-  section: "englophone" | "francophone";
+  section: "englophone";
   dob: string;
   classId: string;
   department: string;
@@ -41,7 +41,7 @@ interface Class {
   className: string;
   department: string;
   cycle: string;
-  schoolSection: "englophone" | "francophone";
+  schoolSection: "englophone";
   acedemicYear: string;
   classMasterId: string;
   tuitionFee: number;
@@ -922,11 +922,6 @@ function StudentDialog({
           <section className="space-y-4">
             {!isEditing && <h4 className="font-display font-bold">Student details</h4>}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="School Section">
-                <div className={`${inputCls} text-black/60`}>
-                  {form.section === "francophone" ? "Francophone" : "Anglophone"}
-                </div>
-              </Field>
               <Field label="Full Name*">
                 <input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} className={inputCls} required autoFocus={!isEditing} />
               </Field>

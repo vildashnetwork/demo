@@ -91,7 +91,7 @@ const saveAttendance = async (req, res) => {
         const records = [];
         const errors = [];
         incoming.forEach((raw, index) => {
-            const { record, error } = normalizeRecord(raw, req.get("x-school-section"));
+            const { record, error } = normalizeRecord(raw, "englophone");
             if (error) errors.push({ index, error });
             else records.push(record);
         });
@@ -296,7 +296,7 @@ router.put("/attendance/students/record/:id", async (req, res) => {
             term: req.body.term,
             recordedBy: req.body.recordedBy,
             notes: req.body.notes
-        }, req.get("x-school-section"));
+        }, "englophone");
         if (error) return res.status(400).json({ success: false, message: error });
 
         const updated = await StudentAttendance.findByIdAndUpdate(

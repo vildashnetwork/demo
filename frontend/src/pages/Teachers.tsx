@@ -24,7 +24,7 @@ interface Teacher {
   qualification: string;
   phone: string;
   email: string;
-  section: "englophone" | "francophone";
+  section: "englophone";
   subjectIds: string[];
   classIds: string[];
   role?: string;
@@ -36,7 +36,7 @@ interface Subject {
   id: string;
   name: string;
   code: string;
-  section: "englophone" | "francophone";
+  section: "englophone";
 }
 
 interface Class {
@@ -44,7 +44,7 @@ interface Class {
   className: string;
   department?: string;
   cycle?: string;
-  schoolSection: "englophone" | "francophone";
+  schoolSection: "englophone";
   acedemicYear?: string;
 }
 
@@ -530,11 +530,6 @@ function TeacherDialog({
           <section className="space-y-4">
             {!isEditing && <h4 className="font-display font-bold">Teacher profile</h4>}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="School Section">
-                <div className={`${inputCls} text-black/60`}>
-                  {form.section === "francophone" ? "Francophone" : "Anglophone"}
-                </div>
-              </Field>
               <Field label="Full Name*">
                 <input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} className={inputCls} required autoFocus={!isEditing} />
               </Field>

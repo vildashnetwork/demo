@@ -795,7 +795,7 @@ router.get('/teacher/schedule/:day', async (req, res) => {
 
 router.get("/users", async (req, res) => {
   try {
-    const section = req.query.section ? String(req.query.section).trim().toLowerCase() : "";
+    const section = "englophone";
     const filter = {
       ...(req.query.role ? { role: String(req.query.role).trim().toLowerCase() } : {}),
       ...(section ? { section } : {})

@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Shield, Database, Plus, Pencil, Trash2, Search, X, Users, UserCog, Loader2, Save, CalendarClock, DollarSign } from "lucide-react";
 import { CompactPageLoader } from "@/components/CompactPageLoader";
-import { getStoredSchoolSection, setStoredSchoolSection } from "@/lib/schoolSystem";
 import { useLanguage } from "@/lib/language";
 import axios from "axios";
 
@@ -10,7 +9,7 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.
 
 type SchoolSettingsForm = {
   academicYear: string;
-  section: "englophone" | "francophone";
+  section: "englophone";
   schoolStartTime: string;
   schoolEndTime: string;
   breakStart: string;
@@ -75,7 +74,7 @@ export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"school" | "users">("school");
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettingsForm>(() => ({
     ...DEFAULT_SCHOOL_SETTINGS,
-    section,
+    section: "englophone",
   }));
   const [classes, setClasses] = useState<PayrollClass[]>([]);
   const [monthlySalaryDrafts, setMonthlySalaryDrafts] = useState<Record<string, number>>({});
@@ -162,13 +161,9 @@ export function SettingsPage() {
   const saveSchoolSettings = async () => {
     setSavingSchoolSettings(true);
     try {
-      const previousSection = getStoredSchoolSection();
-      const response = await axios.post(`${API_BASE}/settings`, schoolSettings);
-      const nextSection = response.data.data?.section === "francophone" ? "francophone" : "englophone";
-      setSchoolSettings({ ...schoolSettings, ...response.data.data, section: nextSection });
-      setStoredSchoolSection(nextSection);
+      const response = await axios.post(`${API_BASE}/settings`, { ...schoolSettings, section: "englophone" });
+      setSchoolSettings({ ...schoolSettings, ...response.data.data, section: "englophone" });
       toast.success(t("School settings saved"));
-      if (previousSection !== nextSection) window.location.reload();
     } catch (error: any) {
       toast.error(error.response?.data?.message || t("Could not save school settings"));
     } finally {
@@ -383,17 +378,7 @@ export function SettingsPage() {
                 <input value={schoolSettings.academicYear} onChange={(event) => setSchoolSettings((current) => ({ ...current, academicYear: event.target.value }))} className={settingsInputClass} placeholder="2026-2027" />
               </SettingsField>
               <SettingsField label={t("School System")}>
-                <select
-                  value={schoolSettings.section}
-                  onChange={(event) => setSchoolSettings((current) => ({
-                    ...current,
-                    section: event.target.value as SchoolSettingsForm["section"],
-                  }))}
-                  className={settingsInputClass}
-                >
-                  <option value="englophone">{t("Anglophone")}</option>
-                  <option value="francophone">{t("Francophone")}</option>
-                </select>
+                <div className={`${settingsInputClass} text-black/60`}>{t("Anglophone")}</div>
               </SettingsField>
               <SettingsField label={t("School Starts")}>
                 <input type="time" value={schoolSettings.schoolStartTime} onChange={(event) => setSchoolSettings((current) => ({ ...current, schoolStartTime: event.target.value }))} className={settingsInputClass} />

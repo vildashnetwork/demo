@@ -170,70 +170,37 @@ const EMPTY_DASHBOARD: DashboardSummary = {
 export function Dashboard() {
   const user = currentUser();
   const isTeacher = user?.role === "teacher";
-  const isFrancophoneMode = getStoredSchoolSection() === "francophone";
-  const labels = isFrancophoneMode
-    ? {
-      welcome: "Bon retour",
-      subtitle: "Voici ce qui se passe aujourd’hui au sein du portail scolaire.",
-      totalStudents: "Élèves",
-      teachers: "Enseignants",
-      feesCollected: "Frais collectés",
-      passRate: "Taux de réussite",
-      activeStudents: "Élèves actifs",
-      classes: "Classes",
-      outstanding: "en retard",
-      avg: "Moyenne / 20",
-      classAverages: "Moyennes des classes",
-      subjectAverages: "Moyennes des matières",
-      shown: "affichées",
-      best: "Meilleur",
-      classesButton: "Classes",
-      subjectsButton: "Matières",
-      excellenceBoard: "Tableau d’excellence",
-      topStudents: "Meilleurs élèves",
-      noData: "Aucune donnée disponible",
-      trendTitle: "Tendance de performance",
-      aiInsight: "Aperçu IA",
-      basedOn: "D’après",
-      students: "élèves",
-      retry: "Réessayer",
-      updating: "Mise à jour du résumé du tableau de bord…",
-      noClassData: "Aucune donnée de classe disponible",
-      noSubjectData: "Aucune donnée de matière disponible",
-      noTrendData: "Aucune donnée de séquence disponible",
-      live: "En direct",
-    }
-    : {
-      welcome: "Welcome back",
-      subtitle: "Here's what's happening across the school portal today.",
-      totalStudents: "Total Students",
-      teachers: "Teachers",
-      feesCollected: "Fees Collected",
-      passRate: "Pass Rate",
-      activeStudents: "Active students",
-      classes: "classes",
-      outstanding: "outstanding",
-      avg: "Average / 20",
-      classAverages: "Class Averages",
-      subjectAverages: "Subject Averages",
-      shown: "shown",
-      best: "Best",
-      classesButton: "Classes",
-      subjectsButton: "Subjects",
-      excellenceBoard: "Excellence Board",
-      topStudents: "Top performing students",
-      noData: "No data available",
-      noClassData: "No class data available",
-      noSubjectData: "No subject data available",
-      noTrendData: "No sequence data available",
-      trendTitle: "Sequence Performance Trend",
-      aiInsight: "AI Insight",
-      basedOn: "Based on",
-      students: "students",
-      retry: "Retry",
-      updating: "Updating dashboard summary…",
-      live: "Live",
-    };
+  const labels = {
+    welcome: "Welcome back",
+    subtitle: "Here's what's happening across the school portal today.",
+    totalStudents: "Total Students",
+    teachers: "Teachers",
+    feesCollected: "Fees Collected",
+    passRate: "Pass Rate",
+    activeStudents: "Active students",
+    classes: "classes",
+    outstanding: "outstanding",
+    avg: "Average / 20",
+    classAverages: "Class Averages",
+    subjectAverages: "Subject Averages",
+    shown: "shown",
+    best: "Best",
+    classesButton: "Classes",
+    subjectsButton: "Subjects",
+    excellenceBoard: "Excellence Board",
+    topStudents: "Top performing students",
+    noData: "No data available",
+    noClassData: "No class data available",
+    noSubjectData: "No subject data available",
+    noTrendData: "No sequence data available",
+    trendTitle: "Sequence Performance Trend",
+    aiInsight: "AI Insight",
+    basedOn: "Based on",
+    students: "students",
+    retry: "Retry",
+    updating: "Updating dashboard summary…",
+    live: "Live",
+  };
 
   const [data, setData] = useState<DashboardSummary>(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
@@ -434,7 +401,7 @@ export function Dashboard() {
             </div>
             <h3 className="font-display font-bold text-lg">{labels.aiInsight}</h3>
             <p className="text-sm text-white/60 mt-2">
-              {data.aiInsight || (isFrancophoneMode ? "Surveillez régulièrement les performances des élèves pour obtenir les meilleurs résultats." : "Monitor student performance regularly for the best results.")}
+              {data.aiInsight || "Monitor student performance regularly for the best results."}
             </p>
           </div>
           <div className="mt-4 pt-4 border-t border-white/10 text-xs text-white/40">

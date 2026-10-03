@@ -12,7 +12,7 @@ interface Subject {
   id: string;
   name: string;
   code: string;
-  section: "englophone" | "francophone";
+  section: "englophone";
   coefficient: number;
   cycle: string;
   periodsPerWeek: number;
@@ -26,7 +26,7 @@ interface SchoolClass {
   className: string;
   department: string;
   cycle: string;
-  schoolSection: "englophone" | "francophone";
+  schoolSection: "englophone";
   acedemicYear: string;
   classMasterId: string;
   ratePerPeriod: number;
@@ -39,7 +39,7 @@ interface SchoolClass {
 interface Teacher {
   id: string;
   fullName: string;
-  section: "englophone" | "francophone";
+  section: "englophone";
   subjectIds: string[];
 }
 
@@ -845,11 +845,6 @@ function SubjectDialog({
               placeholder="e.g., MATH101"
             />
           </Field>
-          <Field label="Section*">
-            <div className={`${inputCls} text-black/60`}>
-              {form.section === "francophone" ? "Francophone" : "Anglophone"}
-            </div>
-          </Field>
           <Field label="Coefficient*">
             <input
               type="number"
@@ -998,9 +993,7 @@ function ClassDialog({
   const set = <K extends keyof SchoolClass>(k: K, v: SchoolClass[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const classNames = form.schoolSection === "francophone"
-    ? ["6ème", "5ème", "4ème", "3ème", "Seconde", "Première", "Terminale", "Graduated"]
-    : ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower 6th", "Upper 6th", "Graduated"];
+  const classNames = ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower 6th", "Upper 6th", "Graduated"];
   const departments = [
     "General", "Science", "Arts", "Commercial", "Electrical & Electronics",
     "Civil Engineering & Woodwork", "Mechanical", "Home Economics & Social",
@@ -1009,7 +1002,7 @@ function ClassDialog({
   ];
   const cycles = ["1st Cycle", "2nd Cycle"];
   const academicYears = ["2026-2027", "2027-2028", "2028-2029"];
-  const sectionTeachers = teachers.filter((teacher) => teacher.section === form.schoolSection);
+  const sectionTeachers = teachers.filter((teacher) => teacher.section === "englophone");
 
   const handleSave = async () => {
     // Validate before saving
@@ -1124,12 +1117,6 @@ function ClassDialog({
                 <option key={year} value={year}>{year}</option>
               ))}
             </select>
-          </Field>
-
-          <Field label="School Section*">
-            <div className={`${inputCls} text-black/60`}>
-              {form.schoolSection === "francophone" ? "Francophone" : "Anglophone"}
-            </div>
           </Field>
 
           <Field label="Class Master*">

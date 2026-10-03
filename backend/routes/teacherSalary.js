@@ -294,7 +294,7 @@ router.get('/salary/stats', async (req, res) => {
 router.post('/salary', async (req, res) => {
   try {
     const { teacherId, month, year, term } = req.body;
-    const section = req.get('x-school-section') || req.body.section || 'englophone';
+    const section = 'englophone';
     const monthNum = monthNumber(month);
     const normalizedMonth = monthNum ? MONTH_NAMES[monthNum - 1] : null;
 
@@ -343,7 +343,7 @@ router.post('/salary', async (req, res) => {
 router.post('/salary/generate', async (req, res) => {
   try {
     const { month, year, term } = req.body;
-    const section = req.get('x-school-section') || req.body.section || 'englophone';
+    const section = 'englophone';
     const monthNum = monthNumber(month);
     const normalizedMonth = monthNum ? MONTH_NAMES[monthNum - 1] : null;
 

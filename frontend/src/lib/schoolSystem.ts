@@ -1,40 +1,26 @@
-export type SchoolSection = "englophone" | "francophone";
+export type SchoolSection = "englophone";
 
 const SCHOOL_SECTION_KEY = "school-section";
 
 export function normalizeSchoolSection(value: string | null | undefined, fallback: SchoolSection = "englophone"): SchoolSection {
-    const normalized = String(value ?? "").trim().toLowerCase();
-
-    if (normalized === "anglophone") return "englophone";
-    if (normalized === "englophone" || normalized === "francophone") return normalized;
-
-    return fallback;
+    void value;
+    void fallback;
+    return "englophone";
 }
 
 export function getStoredSchoolSection(): SchoolSection {
     if (typeof window === "undefined") return "englophone";
     const raw = window.localStorage.getItem(SCHOOL_SECTION_KEY);
-    const normalized = normalizeSchoolSection(raw, "englophone");
-
-    if (raw !== normalized) {
-        window.localStorage.setItem(SCHOOL_SECTION_KEY, normalized);
-    }
-
-    return normalized;
+    if (raw !== "englophone") window.localStorage.setItem(SCHOOL_SECTION_KEY, "englophone");
+    return "englophone";
 }
 
-export function setStoredSchoolSection(section: SchoolSection) {
+export function setStoredSchoolSection(_section: SchoolSection) {
     if (typeof window === "undefined") return;
-    const previous = getStoredSchoolSection();
-    if (previous === section) {
-        window.dispatchEvent(new Event("school-section-change"));
-        return;
-    }
-    window.localStorage.setItem(SCHOOL_SECTION_KEY, section);
+    window.localStorage.setItem(SCHOOL_SECTION_KEY, "englophone");
     window.dispatchEvent(new Event("school-section-change"));
-    window.location.reload();
 }
 
-export function getActiveSectionLabel(section: SchoolSection) {
-    return section === "francophone" ? "Francophone" : "Anglophone";
+export function getActiveSectionLabel(_section: SchoolSection) {
+    return "Anglophone";
 }

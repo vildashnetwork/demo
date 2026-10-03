@@ -29,7 +29,7 @@ export async function storeStudentPhoto(photoUrl, section, studentId, publicBase
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
-    const sectionFolder = section === "francophone" ? "francophone" : "englophone";
+    const sectionFolder = "englophone";
     const configuredKeys = [cloudName, apiKey, apiSecret].filter(Boolean).length;
     let cloudinaryUrl = "";
 

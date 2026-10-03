@@ -99,26 +99,6 @@ const CLASSES = [
   { id: 'c15', name: 'Form 5 Commercial', department: 'Commercial' },
 ];
 
-const FRANCOPHONE_SUBJECTS = [
-  { id: 'fr_s1', name: 'Français', code: 'FR-FRA' },
-  { id: 'fr_s2', name: 'Mathématiques', code: 'FR-MTH' },
-  { id: 'fr_s3', name: 'Sciences de la vie et de la terre', code: 'FR-SVT' },
-  { id: 'fr_s4', name: 'Histoire', code: 'FR-HIS' },
-  { id: 'fr_s5', name: 'Géographie', code: 'FR-GEO' },
-  { id: 'fr_s6', name: 'Physique', code: 'FR-PHY' },
-];
-
-const FRANCOPHONE_CLASSES = [
-  { id: 'fr_c1', name: '6ème General', department: 'General' },
-  { id: 'fr_c2', name: '5ème General', department: 'General' },
-  { id: 'fr_c3', name: '4ème General', department: 'General' },
-  { id: 'fr_c4', name: '3ème General', department: 'General' },
-  { id: 'fr_c5', name: 'Seconde Arts', department: 'Arts' },
-  { id: 'fr_c6', name: 'Seconde Science', department: 'Science' },
-  { id: 'fr_c7', name: 'Première Arts', department: 'Arts' },
-  { id: 'fr_c8', name: 'Terminale Science', department: 'Science' },
-];
-
 // ============================================
 // SCHOOL SCHEDULE (from the Auto-Generate wizard, Step 2)
 // ============================================
@@ -412,7 +392,10 @@ export function TeacherTimetableView() {
   const [showPdfOptions, setShowPdfOptions] = useState(false);
   const hasFetched = useRef(false);
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings>(DEFAULT_SCHOOL_SETTINGS);
-  const [availabilityForm, setAvailabilityForm] = useState({ isPermanent: true, availableDays: [...DAYS] });
+  const [availabilityForm, setAvailabilityForm] = useState<{ isPermanent: boolean; availableDays: string[] }>({
+    isPermanent: true,
+    availableDays: [...DAYS],
+  });
   const [availabilitySaved, setAvailabilitySaved] = useState(false);
   const [isSavingAvailability, setIsSavingAvailability] = useState(false);
 
@@ -447,12 +430,13 @@ export function TeacherTimetableView() {
       const hasSavedConfig =
         !!loadedUser.isPermanent ||
         (Array.isArray(loadedUser.availableDays) && loadedUser.availableDays.length > 0);
+      const availableDays: string[] = Array.isArray(loadedUser.availableDays)
+        ? loadedUser.availableDays.filter((day: unknown): day is string => typeof day === 'string')
+        : [...DAYS];
 
       const nextForm = {
         isPermanent: !!loadedUser.isPermanent,
-        availableDays: Array.isArray(loadedUser.availableDays)
-          ? [...new Set(loadedUser.availableDays.filter(Boolean))]
-          : [...DAYS],
+        availableDays: [...new Set(availableDays.filter(Boolean))],
       };
 
       setAvailabilityForm(nextForm);
@@ -466,8 +450,8 @@ export function TeacherTimetableView() {
 
   const handleToggleDay = (day: string) => {
     if (availabilitySaved) return;
-    setAvailabilityForm((prev) => {
-      const nextDays = prev.availableDays.includes(day)
+    setAvailabilityForm((prev: { isPermanent: boolean; availableDays: string[] }): { isPermanent: boolean; availableDays: string[] } => {
+      const nextDays: string[] = prev.availableDays.includes(day)
         ? prev.availableDays.filter((item) => item !== day)
         : [...prev.availableDays, day];
       return { ...prev, availableDays: nextDays };
@@ -514,14 +498,13 @@ export function TeacherTimetableView() {
   // ============================================
 
   const generateMockData = (userData?: any, settings: SchoolSettings = schoolSettings) => {
-    const isFrancophone = getStoredSchoolSection() === 'francophone';
-    const mockClasses = isFrancophone ? FRANCOPHONE_CLASSES : CLASSES;
-    const mockSubjects = isFrancophone ? FRANCOPHONE_SUBJECTS : SUBJECTS;
+    const mockClasses = CLASSES;
+    const mockSubjects = SUBJECTS;
     const mockTeacher: Teacher = {
       id: 't1',
-      name: userData?.name || (isFrancophone ? 'Clarisse Mbarga' : 'John Doe'),
-      email: userData?.email || (isFrancophone ? 'clarisse@example.school' : 'john@school.com'),
-      username: userData?.username || (isFrancophone ? 'clarisse_mbarga' : 'john_doe'),
+      name: userData?.name || 'John Doe',
+      email: userData?.email || 'john@school.com',
+      username: userData?.username || 'john_doe',
       qualification: 'BSc Mathematics',
       role: 'teacher'
     };

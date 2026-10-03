@@ -21,14 +21,14 @@ type Student = {
     photoCloudinaryUrl?: string;
     photoLocalUrl?: string;
     registrationDate?: string;
-    section?: "englophone" | "francophone";
+    section?: "englophone";
 };
 
 type SchoolClass = {
     id: string;
     className: string;
     department: string;
-    schoolSection?: "englophone" | "francophone";
+    schoolSection?: "englophone";
 };
 
 const CARD_PRESETS = {

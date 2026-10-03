@@ -10,10 +10,8 @@ const sectionFilter = (req) => {
     return section ? { schoolSection: section } : {};
 };
 const isClassLevelAllowed = (className, section) => {
-    const levels = section === "francophone"
-        ? ["6ème", "5ème", "4ème", "3ème", "Seconde", "Première", "Terminale", "Graduated"]
-        : ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower 6th", "Upper 6th", "Graduated"];
-    return levels.includes(className);
+    void section;
+    return ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower 6th", "Upper 6th", "Graduated"].includes(className);
 };
 
 // ==================== GET ROUTES ====================

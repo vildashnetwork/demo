@@ -81,7 +81,7 @@ router.get('/timetable/teacher/:teacherId', async (req, res) => {
 router.post('/timetable', async (req, res) => {
   try {
     console.log('📥 Received POST request:', req.body);
-    const section = req.get('x-school-section') || req.body.section || 'englophone';
+    const section = 'englophone';
 
     const {
       teacherId, classId, subjectId, day, startTime, endTime,
@@ -265,7 +265,7 @@ router.post('/timetable', async (req, res) => {
 // Bulk create timetable entries
 router.post('/timetable/bulk', async (req, res) => {
   try {
-    const activeSection = req.get('x-school-section') || 'englophone';
+    const activeSection = 'englophone';
     const { entries } = req.body;
 
     if (!entries || !Array.isArray(entries) || entries.length === 0) {
@@ -618,7 +618,7 @@ router.delete('/timetable/bulk', async (req, res) => {
 let generationInProgress = false;
 
 router.post('/timetable/generate', async (req, res) => {
-  const section = req.get('x-school-section') || req.body.section || 'englophone';
+  const section = 'englophone';
   const academicYear = req.body.academicYear ||
     `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
   const repairMode = req.body.repair === true;

@@ -57,7 +57,7 @@ const schoolClassSchema = new mongoose.Schema({
     },
     schoolSection: {
         type: String,
-        enum: ["englophone", "francophone"],
+        enum: ["englophone"],
         default: "englophone",
         trim: true
     },
