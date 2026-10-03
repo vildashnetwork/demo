@@ -21,7 +21,7 @@ type NavItem = {
 const ALL: Role[] = ["super_admin", "admin", "teacher", "bursar", "parent"];
 
 const NAV: NavItem[] = [
-  { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true, roles: ALL },
+  { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true, roles: ["super_admin", "admin", "bursar", "parent"] },
   { to: "/app/students", label: "Students", icon: Users, roles: ["super_admin", "admin", "bursar"] },
   { to: "/app/teachers", label: "Teachers", icon: GraduationCap, roles: ["super_admin", "admin"] },
   { to: "/app/classes", label: "Classes & Subjects", icon: BookOpen, roles: ["super_admin", "admin"] },

@@ -7,6 +7,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import { dbManager } from "./db/dbManager.js";
+import { localStudentUploadsPath } from "./services/cloudinaryStudentPhotos.js";
 
 // Import routes
 import marks from "./routes/mark.js";
@@ -101,6 +102,8 @@ app.use(cors({
     credentials: true,
     maxAge: 86400 // 24 hours
 }));
+
+app.use("/uploads/students", express.static(localStudentUploadsPath));
 
 // ==================== ROUTES ====================
 // Health check endpoint

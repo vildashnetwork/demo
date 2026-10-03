@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import Student from "../models/Students.js";
 import SchoolClass from "../models/SchoolClass.js";
+import { storeStudentPhoto } from "../services/cloudinaryStudentPhotos.js";
 import {
     generateMatricule,
     previewMatricule,
@@ -15,6 +16,12 @@ const router = express.Router();
 const sectionFilter = (req) => {
     const section = String(req.query.section || req.get("x-school-section") || "").trim().toLowerCase();
     return ["englophone", "francophone"].includes(section) ? { section } : {};
+};
+const getPublicBaseUrl = (req) => {
+    const forwarded = String(req.get("x-forwarded-proto") || "").split(",")[0].trim();
+    const protocol = forwarded || req.protocol || "http";
+    const host = req.get("host") || process.env.PUBLIC_BASE_URL || "localhost:5000";
+    return `${protocol}://${host}`;
 };
 
 /**
@@ -404,6 +411,9 @@ router.post("/students", async (req, res) => {
         // (Siblings can have same parent phone, different students can have same name)
 
         const student = new Student(studentData);
+        if (student.photoUrl) {
+            student.photoUrl = await storeStudentPhoto(student.photoUrl, student.section, String(student._id), getPublicBaseUrl(req));
+        }
         await student.save();
 
         res.status(201).json({
@@ -808,6 +818,10 @@ router.put("/students/:id", async (req, res) => {
             payload.feesDue = Math.max(0, payload.tuitionFee - tuitionPaid + registrationFeeAmount - registrationPaid);
         }
 
+        if (payload.photoUrl) {
+            payload.photoUrl = await storeStudentPhoto(payload.photoUrl, payload.section || existingStudent.section, id, getPublicBaseUrl(req));
+        }
+
         const updatedStudent = await Student.findByIdAndUpdate(
             id,
             payload,
@@ -888,6 +902,10 @@ router.patch("/students/:id", async (req, res) => {
                     return res.status(400).json({ success: false, message: "Student section must match the selected class section" });
                 }
             }
+        }
+
+        if (payload.photoUrl) {
+            payload.photoUrl = await storeStudentPhoto(payload.photoUrl, payload.section || existingStudent.section, id, getPublicBaseUrl(req));
         }
 
         const updatedStudent = await Student.findByIdAndUpdate(
@@ -995,7 +1013,7 @@ router.patch("/students/:id/update-photo", async (req, res) => {
             });
         }
 
-        student.photoUrl = photoUrl;
+        student.photoUrl = await storeStudentPhoto(photoUrl, student.section, id, getPublicBaseUrl(req));
         await student.save();
 
         res.status(200).json({

@@ -2,8 +2,9 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import dns from 'dns';
+import env from "dotenv"
 import { execFile } from 'child_process';
-
+env.config()
 let uri = process.env.MONGOURI || 'mongodb://127.0.0.1:27017/MANFESS_OFFLINE';
 const osResolveSrv = (srvName) => new Promise((resolve, reject) => {
   execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
@@ -22,7 +23,7 @@ const srvToStandardUri = async (srvUri) => {
   try { records = await dns.promises.resolveSrv('_mongodb._tcp.' + host); } catch { records = await osResolveSrv('_mongodb._tcp.' + host); }
   const hosts = records.map(r => r.name + ':' + r.port).join(',');
   let txt = '';
-  try { txt = (await dns.promises.resolveTxt(host)).map(p => p.join('')).join('&'); } catch {}
+  try { txt = (await dns.promises.resolveTxt(host)).map(p => p.join('')).join('&'); } catch { }
   const params = new URLSearchParams(query ? query.slice(1) : '');
   for (const [k, v] of new URLSearchParams(txt)) if (!params.has(k)) params.set(k, v);
   if (!params.has('tls') && !params.has('ssl')) params.set('tls', 'true');
@@ -37,10 +38,10 @@ const O = (id) => new mongoose.Types.ObjectId(id);
 
 const NKIMI = '6a97b0d9ac4ccdf7ea024cb3';
 const MARVIS = '6a97a577909973238d6acbf9';
-const PERIODS = [[1,'04:30','05:15'],[2,'05:15','06:00'],[3,'06:00','06:45'],[4,'06:45','07:30'],[5,'07:30','08:15'],[6,'08:15','09:00']];
-const DAYS_ALL = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const PERIODS = [[1, '04:30', '05:15'], [2, '05:15', '06:00'], [3, '06:00', '06:45'], [4, '06:45', '07:30'], [5, '07:30', '08:15'], [6, '08:15', '09:00']];
+const DAYS_ALL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const tt = db.collection('timetables');
-const OL5 = ['6a9706c7530d27459070478e','6a9706d7530d27459070478f','6a97aa0e909973238d6acc01'];
+const OL5 = ['6a9706c7530d27459070478e', '6a9706d7530d27459070478f', '6a97aa0e909973238d6acc01'];
 const COM_OL5 = '6a979e683c1247098a21e165';
 
 const all = await tt.find({ academicYear: '2026-2027', isActive: true }).toArray();
@@ -65,7 +66,7 @@ async function moveEntry(e, day, p) {
   if (!still) occ[e.day][e.periodNumber].teachers.delete(e.teacherId.toString());
   occ[day][p].classes.add(e.classId.toString());
   occ[day][p].teachers.add(e.teacherId.toString());
-  await tt.updateOne({ _id: e._id }, { $set: { day, startTime: PERIODS[p-1][1], endTime: PERIODS[p-1][2], periodNumber: p } });
+  await tt.updateOne({ _id: e._id }, { $set: { day, startTime: PERIODS[p - 1][1], endTime: PERIODS[p - 1][2], periodNumber: p } });
   e.day = day; e.periodNumber = p;
 }
 // Idempotency
