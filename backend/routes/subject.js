@@ -1,11 +1,12 @@
 import express from "express";
 import mongoose from "mongoose";
 import Subject from "../models/Subject.js"; // Adjust the path as needed
+import { normalizeSchoolSection } from "../utils/schoolSection.js";
 
 const router = express.Router();
 const sectionFilter = (req) => {
-    const section = String(req.query.section || req.get("x-school-section") || "").trim().toLowerCase();
-    return ["englophone", "francophone"].includes(section) ? { section } : {};
+    const section = normalizeSchoolSection(req.query.section || req.get("x-school-section") || "", "");
+    return section ? { section } : {};
 };
 
 // ==================== GET ROUTES ====================
@@ -304,7 +305,7 @@ router.get("/subjects/stats/summary", async (req, res) => {
 router.post("/subjects", async (req, res) => {
     try {
         const subjectData = req.body;
-        subjectData.section = subjectData.section || req.get("x-school-section") || "englophone";
+        subjectData.section = normalizeSchoolSection(subjectData.section || req.get("x-school-section") || "englophone", "englophone");
 
         // Check if subject code already exists
         const existingSubject = await Subject.findOne({ code: subjectData.code, section: subjectData.section });

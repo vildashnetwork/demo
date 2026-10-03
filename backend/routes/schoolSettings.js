@@ -1,6 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import SchoolSettings from "../models/SchoolSettings.js";
+import { normalizeSchoolSection } from "../utils/schoolSection.js";
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ router.get("/settings", async (req, res) => {
     const academicYear =
       req.query.academicYear ||
       `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
-    const section = req.query.section || "englophone";
+    const section = normalizeSchoolSection(req.query.section || "englophone", "englophone");
 
     let settings = await SchoolSettings.findOne({ academicYear, section });
 
@@ -63,7 +64,7 @@ router.post("/settings", async (req, res) => {
     const academicYear =
       req.body.academicYear ||
       `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
-    const activeSection = section || "englophone";
+    const activeSection = normalizeSchoolSection(section || "englophone", "englophone");
 
     // Basic validation
     const timeRe = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;

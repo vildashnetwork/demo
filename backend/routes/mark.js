@@ -5,11 +5,12 @@ import Subject from "../models/Subject.js";
 import SchoolClass from "../models/SchoolClass.js";
 import Student from "../models/Students.js";
 import User from "../models/User.js";
+import { normalizeSchoolSection } from "../utils/schoolSection.js";
 
 const router = express.Router();
 const sectionFilter = (req) => {
-    const section = String(req.query.section || req.get("x-school-section") || "").trim().toLowerCase();
-    return ["englophone", "francophone"].includes(section) ? { section } : {};
+    const section = normalizeSchoolSection(req.query.section || req.get("x-school-section") || "", "");
+    return section ? { section } : {};
 };
 
 // ==================== GET ROUTES ====================
@@ -44,7 +45,7 @@ router.get("/marks", async (req, res) => {
 
 router.get("/marks/dashboard-summary", async (req, res) => {
     try {
-        const section = ["englophone", "francophone"].includes(String(req.query.section)) ? String(req.query.section) : "englophone";
+        const section = normalizeSchoolSection(req.query.section || "englophone", "englophone");
         const [aggregateRows, subjects, classes, students, totalTeachers] = await Promise.all([
             Mark.aggregate([{ $match: { section } }, {
                 $facet: {
@@ -467,7 +468,7 @@ router.get("/marks/student/:studentId/summary", async (req, res) => {
 // POST - Create a new mark (single)
 router.post("/marks", async (req, res) => {
     try {
-        const activeSection = req.get("x-school-section") || req.body.section || "englophone";
+        const activeSection = normalizeSchoolSection(req.get("x-school-section") || req.body.section || "englophone", "englophone");
         const markData = { ...req.body, section: activeSection };
 
         // Check if mark already exists for this student, subject, and sequence
@@ -515,7 +516,7 @@ router.post("/marks", async (req, res) => {
 // POST - Create multiple marks (bulk insert)
 router.post("/marks/bulk", async (req, res) => {
     try {
-        const activeSection = req.get("x-school-section") || "englophone";
+        const activeSection = normalizeSchoolSection(req.get("x-school-section") || "englophone", "englophone");
         const marksData = Array.isArray(req.body)
             ? req.body.map((mark) => ({ ...mark, section: activeSection }))
             : req.body;

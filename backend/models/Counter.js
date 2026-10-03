@@ -12,6 +12,12 @@ const counterSchema = new mongoose.Schema({
         unique: true,
         trim: true
     },
+    section: {
+        type: String,
+        enum: ["englophone", "francophone"],
+        default: "englophone",
+        trim: true
+    },
     seq: {
         type: Number,
         required: true,
@@ -23,6 +29,8 @@ const counterSchema = new mongoose.Schema({
         trim: true
     }
 }, { timestamps: true });
+
+counterSchema.index({ section: 1, key: 1 }, { unique: true });
 
 /**
  * Atomically reserve the next value of a counter.

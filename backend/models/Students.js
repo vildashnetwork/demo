@@ -63,6 +63,14 @@ const studentschema = new mongoose.Schema({
         type: String,
         default: ""
     },
+    photoCloudinaryUrl: {
+        type: String,
+        default: ""
+    },
+    photoLocalUrl: {
+        type: String,
+        default: ""
+    },
     registrationDate: {
         type: String,
         required: true

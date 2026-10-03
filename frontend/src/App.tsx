@@ -5,6 +5,7 @@ import { LoginPage } from "@/pages/Login";
 import { AppLayout } from "@/pages/AppLayout";
 import { Dashboard } from "@/pages/Dashboard";
 import { StudentsPage } from "@/pages/Students";
+import { StudentIdCardsPage } from "@/pages/StudentIdCards";
 import { TeachersPage } from "@/pages/Teachers";
 import { ClassesPage } from "@/pages/Classes";
 import { MarkEntry } from "@/pages/MarkEntry";
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/app" element={<AppLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="students" element={<StudentsPage />} />
+          <Route path="student-id-cards" element={<StudentIdCardsPage />} />
           <Route path="teachers" element={<TeachersPage />} />
           <Route path="timetable" element={<TimetableAdminPage />} />
           <Route path="classes" element={<ClassesPage />} />

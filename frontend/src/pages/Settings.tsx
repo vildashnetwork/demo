@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Shield, Database, Plus, Pencil, Trash2, Search, X, Users, UserCog, Loader2, Save, CalendarClock, DollarSign } from "lucide-react";
 import { CompactPageLoader } from "@/components/CompactPageLoader";
 import { getStoredSchoolSection, setStoredSchoolSection } from "@/lib/schoolSystem";
+import { useLanguage } from "@/lib/language";
 import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.com/api";
@@ -63,6 +64,7 @@ interface User {
 }
 
 export function SettingsPage() {
+  const { section, t } = useLanguage();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<User | null>(null);
@@ -71,7 +73,10 @@ export function SettingsPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"school" | "users">("school");
-  const [schoolSettings, setSchoolSettings] = useState<SchoolSettingsForm>(DEFAULT_SCHOOL_SETTINGS);
+  const [schoolSettings, setSchoolSettings] = useState<SchoolSettingsForm>(() => ({
+    ...DEFAULT_SCHOOL_SETTINGS,
+    section,
+  }));
   const [classes, setClasses] = useState<PayrollClass[]>([]);
   const [monthlySalaryDrafts, setMonthlySalaryDrafts] = useState<Record<string, number>>({});
   const [savingSchoolSettings, setSavingSchoolSettings] = useState(false);
@@ -87,7 +92,7 @@ export function SettingsPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE}/users`);
+      const response = await axios.get(`${API_BASE}/users`, { params: { section } });
       if (response.data.success) {
         const mappedUsers = response.data.data.map((user: any) => ({
           id: user._id,
@@ -107,7 +112,7 @@ export function SettingsPage() {
         console.log("📚 Users loaded:", mappedUsers.length);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to fetch users");
+      toast.error(error.response?.data?.message || t("Failed to fetch users"));
       console.error("Error fetching users:", error);
     } finally {
       setLoading(false);
@@ -117,23 +122,21 @@ export function SettingsPage() {
   useEffect(() => {
     fetchUsers();
     fetchSchoolSettings();
-  }, []);
+  }, [section]);
 
   const fetchSchoolSettings = async () => {
     try {
       const [settingsResponse, classesResponse] = await Promise.all([
-        axios.get(`${API_BASE}/settings`),
-        axios.get(`${API_BASE}/classes`),
+        axios.get(`${API_BASE}/settings`, { params: { section } }),
+        axios.get(`${API_BASE}/classes`, { params: { section } }),
       ]);
       if (settingsResponse.data.success) {
-        const nextSection = settingsResponse.data.data.section === "francophone" ? "francophone" : "englophone";
         setSchoolSettings({
           ...DEFAULT_SCHOOL_SETTINGS,
           ...settingsResponse.data.data,
-          section: nextSection,
+          section,
           teacherPaymentMode: settingsResponse.data.data.teacherPaymentMode === "monthly" ? "monthly" : "hourly",
         });
-        setStoredSchoolSection(nextSection);
       }
       if (classesResponse.data.success) {
         setClasses(classesResponse.data.data.map((item: any) => ({
@@ -145,7 +148,7 @@ export function SettingsPage() {
         })));
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to load school settings");
+      toast.error(error.response?.data?.message || t("Failed to load school settings"));
     }
   };
 
@@ -163,10 +166,10 @@ export function SettingsPage() {
       const nextSection = response.data.data?.section === "francophone" ? "francophone" : "englophone";
       setSchoolSettings({ ...schoolSettings, ...response.data.data, section: nextSection });
       setStoredSchoolSection(nextSection);
-      toast.success("School settings saved");
+      toast.success(t("School settings saved"));
       if (previousSection !== nextSection) window.location.reload();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Could not save school settings");
+      toast.error(error.response?.data?.message || t("Could not save school settings"));
     } finally {
       setSavingSchoolSettings(false);
     }
@@ -179,9 +182,9 @@ export function SettingsPage() {
         `${API_BASE}/classes/${schoolClass.id}`,
         { ratePerPeriod: schoolClass.ratePerPeriod }
       )));
-      toast.success("Class period rates saved");
+      toast.success(t("Class period rates saved"));
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Could not save class period rates");
+      toast.error(error.response?.data?.message || t("Could not save class period rates"));
     } finally {
       setSavingClassRates(false);
     }
@@ -190,7 +193,7 @@ export function SettingsPage() {
   const saveTeacherMonthlyAmounts = async () => {
     const teachers = users.filter((user) => user.role === "teacher");
     if (teachers.some((teacher) => Number(monthlySalaryDrafts[teacher.id] ?? 0) <= 0)) {
-      toast.error("Enter a positive monthly amount for every teacher");
+      toast.error(t("Enter a positive monthly amount for every teacher"));
       return;
     }
     setSavingTeacherRates(true);
@@ -203,9 +206,9 @@ export function SettingsPage() {
         ? { ...user, monthlySalary: Number(monthlySalaryDrafts[user.id]) }
         : user
       ));
-      toast.success("Monthly teacher amounts saved");
+      toast.success(t("Monthly teacher amounts saved"));
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Could not save teacher monthly amounts");
+      toast.error(error.response?.data?.message || t("Could not save teacher monthly amounts"));
     } finally {
       setSavingTeacherRates(false);
     }
@@ -231,7 +234,7 @@ export function SettingsPage() {
     try {
       const response = await axios.post(API_BASE, userData);
       if (response.data.success) {
-        toast.success(`${userData.role} added successfully`);
+        toast.success(t("User added successfully"));
         await fetchUsers();
         setShowNew(false);
         return true;
@@ -239,9 +242,9 @@ export function SettingsPage() {
     } catch (error: any) {
       console.error("Error creating user:", error);
       if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+        toast.error(t(error.response.data.message));
       } else {
-        toast.error("Failed to create user");
+        toast.error(t("Failed to create user"));
       }
       return false;
     }
@@ -252,7 +255,7 @@ export function SettingsPage() {
     try {
       const response = await axios.put(`${API_BASE}/${id}`, userData);
       if (response.data.success) {
-        toast.success(`${userData.role} updated successfully`);
+        toast.success(t("User updated successfully"));
         await fetchUsers();
         setEditing(null);
         return true;
@@ -260,9 +263,9 @@ export function SettingsPage() {
     } catch (error: any) {
       console.error("Error updating user:", error);
       if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+        toast.error(t(error.response.data.message));
       } else {
-        toast.error("Failed to update user");
+        toast.error(t("Failed to update user"));
       }
       return false;
     }
@@ -270,18 +273,18 @@ export function SettingsPage() {
 
   // Delete user
   const deleteUser = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${name}"?`)) return;
+    if (!window.confirm(`${t("Are you sure you want to delete")} "${name}"?`)) return;
 
     setDeleteLoading(id);
     try {
       const response = await axios.delete(`${API_BASE}/${id}`);
       if (response.data.success) {
-        toast.success("User deleted successfully");
+        toast.success(t("User deleted successfully"));
         await fetchUsers();
       }
     } catch (error: any) {
       console.error("Error deleting user:", error);
-      toast.error(error.response?.data?.message || "Failed to delete user");
+      toast.error(error.response?.data?.message || t("Failed to delete user"));
     } finally {
       setDeleteLoading(null);
     }
@@ -297,7 +300,8 @@ export function SettingsPage() {
       acedemicYear: user.acedemicYear,
       qualification: user.qualification || "",
       subjectIds: user.subjectIds || [],
-      classIds: user.classIds || []
+      classIds: user.classIds || [],
+      section
     };
 
     const isExisting = user.id && isDatabaseId(user.id);
@@ -324,15 +328,15 @@ export function SettingsPage() {
   };
 
   if (loading) {
-    return <CompactPageLoader label="Loading users..." />;
+    return <CompactPageLoader label={t("Loading users...")} />;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-extrabold tracking-tight">School Settings</h1>
-          <p className="text-sm text-black/60 mt-1">Configure the school calendar, teacher pay, and user access.</p>
+          <h1 className="font-display text-3xl font-extrabold tracking-tight">{t("School Settings")}</h1>
+          <p className="text-sm text-black/60 mt-1">{t("Configure the school calendar, teacher pay, and user access.")}</p>
         </div>
         <div className="inline-flex w-fit rounded-xl border border-stone-200 bg-white p-1">
           <button
@@ -340,14 +344,14 @@ export function SettingsPage() {
             onClick={() => setActiveTab("school")}
             className={`rounded-lg px-4 py-2 text-sm font-semibold ${activeTab === "school" ? "bg-[#121212] text-white" : "text-black/60 hover:bg-stone-50"}`}
           >
-            School Setup
+            {t("School Setup")}
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("users")}
             className={`rounded-lg px-4 py-2 text-sm font-semibold ${activeTab === "users" ? "bg-[#121212] text-white" : "text-black/60 hover:bg-stone-50"}`}
           >
-            User Management
+            {t("User Management")}
           </button>
         </div>
       </div>
@@ -359,8 +363,8 @@ export function SettingsPage() {
               <div className="flex items-center gap-3">
                 <CalendarClock className="size-5 text-brand" />
                 <div>
-                  <h2 className="font-display font-bold">School Schedule & Pay Mode</h2>
-                  <p className="text-xs text-black/50">Settings apply to the selected academic year.</p>
+                  <h2 className="font-display font-bold">{t("School Schedule & Pay Mode")}</h2>
+                  <p className="text-xs text-black/50">{t("Settings apply to the selected academic year.")}</p>
                 </div>
               </div>
               <button
@@ -369,15 +373,15 @@ export function SettingsPage() {
                 disabled={savingSchoolSettings}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#121212] px-4 py-2 text-sm font-semibold text-white hover:bg-black disabled:opacity-50"
               >
-                <Save className="size-4" /> {savingSchoolSettings ? "Saving..." : "Save School Settings"}
+                <Save className="size-4" /> {savingSchoolSettings ? t("Saving...") : t("Save School Settings")}
               </button>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <SettingsField label="Academic Year">
+              <SettingsField label={t("Academic Year")}>
                 <input value={schoolSettings.academicYear} onChange={(event) => setSchoolSettings((current) => ({ ...current, academicYear: event.target.value }))} className={settingsInputClass} placeholder="2026-2027" />
               </SettingsField>
-              <SettingsField label="School System">
+              <SettingsField label={t("School System")}>
                 <select
                   value={schoolSettings.section}
                   onChange={(event) => setSchoolSettings((current) => ({
@@ -386,38 +390,38 @@ export function SettingsPage() {
                   }))}
                   className={settingsInputClass}
                 >
-                  <option value="englophone">Anglophone</option>
-                  <option value="francophone">Francophone</option>
+                  <option value="englophone">{t("Anglophone")}</option>
+                  <option value="francophone">{t("Francophone")}</option>
                 </select>
               </SettingsField>
-              <SettingsField label="School Starts">
+              <SettingsField label={t("School Starts")}>
                 <input type="time" value={schoolSettings.schoolStartTime} onChange={(event) => setSchoolSettings((current) => ({ ...current, schoolStartTime: event.target.value }))} className={settingsInputClass} />
               </SettingsField>
-              <SettingsField label="School Ends">
+              <SettingsField label={t("School Ends")}>
                 <input type="time" value={schoolSettings.schoolEndTime} onChange={(event) => setSchoolSettings((current) => ({ ...current, schoolEndTime: event.target.value }))} className={settingsInputClass} />
               </SettingsField>
-              <SettingsField label="Break Starts">
+              <SettingsField label={t("Break Starts")}>
                 <input type="time" value={schoolSettings.breakStart} onChange={(event) => setSchoolSettings((current) => ({ ...current, breakStart: event.target.value }))} className={settingsInputClass} />
               </SettingsField>
-              <SettingsField label="Break Ends">
+              <SettingsField label={t("Break Ends")}>
                 <input type="time" value={schoolSettings.breakEnd} onChange={(event) => setSchoolSettings((current) => ({ ...current, breakEnd: event.target.value }))} className={settingsInputClass} />
               </SettingsField>
-              <SettingsField label="Period Duration (minutes)">
+              <SettingsField label={t("Period Duration (minutes)")}>
                 <input type="number" min={10} max={120} value={schoolSettings.periodDurationMinutes} onChange={(event) => setSchoolSettings((current) => ({ ...current, periodDurationMinutes: Number(event.target.value) }))} className={settingsInputClass} />
               </SettingsField>
-              <SettingsField label="Periods Per Day">
+              <SettingsField label={t("Periods Per Day")}>
                 <input type="number" min={1} max={12} value={schoolSettings.periodsPerDay} onChange={(event) => setSchoolSettings((current) => ({ ...current, periodsPerDay: Number(event.target.value) }))} className={settingsInputClass} />
               </SettingsField>
-              <SettingsField label="Teacher Payment">
+              <SettingsField label={t("Teacher Payment")}>
                 <select value={schoolSettings.teacherPaymentMode} onChange={(event) => setSchoolSettings((current) => ({ ...current, teacherPaymentMode: event.target.value as SchoolSettingsForm["teacherPaymentMode"] }))} className={settingsInputClass}>
-                  <option value="hourly">Per period</option>
-                  <option value="monthly">Monthly</option>
+                  <option value="hourly">{t("Per period")}</option>
+                  <option value="monthly">{t("Monthly")}</option>
                 </select>
               </SettingsField>
             </div>
 
             <div className="mt-4">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-black/50">School Days</p>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-black/50">{t("School Days")}</p>
               <div className="flex flex-wrap gap-2">
                 {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day) => {
                   const selected = schoolSettings.schoolDays.includes(day);
@@ -446,12 +450,12 @@ export function SettingsPage() {
                 <div className="flex items-center gap-3">
                   <DollarSign className="size-5 text-brand" />
                   <div>
-                    <h2 className="font-display font-bold">Rate Per Period by Class</h2>
-                    <p className="text-xs text-black/50">Hourly payroll uses the rate attached to each scheduled class.</p>
+                    <h2 className="font-display font-bold">{t("Rate Per Period by Class")}</h2>
+                    <p className="text-xs text-black/50">{t("Hourly payroll uses the rate attached to each scheduled class.")}</p>
                   </div>
                 </div>
                 <button type="button" onClick={saveClassRates} disabled={savingClassRates || !classes.length} className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold hover:bg-stone-50 disabled:opacity-50">
-                  {savingClassRates ? "Saving..." : "Save Rates"}
+                  {savingClassRates ? t("Saving...") : t("Save Rates")}
                 </button>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -459,10 +463,10 @@ export function SettingsPage() {
                   <label key={schoolClass.id} className="flex items-center justify-between gap-3 rounded-lg border border-stone-100 bg-stone-50/70 px-3 py-2.5">
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold">{schoolClass.className} {schoolClass.department}</span>
-                      <span className="text-[11px] text-black/45">{schoolClass.cycle}</span>
+                      <span className="text-[11px] text-black/45">{t(schoolClass.cycle)}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      <input type="number" min={0} step={50} value={schoolClass.ratePerPeriod} onChange={(event) => setClasses((current) => current.map((item) => item.id === schoolClass.id ? { ...item, ratePerPeriod: Math.max(0, Number(event.target.value) || 0) } : item))} className="w-24 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-right text-sm font-semibold" aria-label={`${schoolClass.className} ${schoolClass.department} rate per period`} />
+                      <input type="number" min={0} step={50} value={schoolClass.ratePerPeriod} onChange={(event) => setClasses((current) => current.map((item) => item.id === schoolClass.id ? { ...item, ratePerPeriod: Math.max(0, Number(event.target.value) || 0) } : item))} className="w-24 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-right text-sm font-semibold" aria-label={`${schoolClass.className} ${schoolClass.department} ${t("rate per period")}`} />
                       <span className="text-xs text-black/50">FRS</span>
                     </span>
                   </label>
@@ -475,12 +479,12 @@ export function SettingsPage() {
                 <div className="flex items-center gap-3">
                   <DollarSign className="size-5 text-brand" />
                   <div>
-                    <h2 className="font-display font-bold">Monthly Amount by Teacher</h2>
-                    <p className="text-xs text-black/50">Set each teacher’s monthly salary amount.</p>
+                    <h2 className="font-display font-bold">{t("Monthly Amount by Teacher")}</h2>
+                    <p className="text-xs text-black/50">{t("Set each teacher’s monthly salary amount.")}</p>
                   </div>
                 </div>
                 <button type="button" onClick={saveTeacherMonthlyAmounts} disabled={savingTeacherRates} className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold hover:bg-stone-50 disabled:opacity-50">
-                  {savingTeacherRates ? "Saving..." : "Save Amounts"}
+                  {savingTeacherRates ? t("Saving...") : t("Save Amounts")}
                 </button>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -494,7 +498,7 @@ export function SettingsPage() {
                   </label>
                 ))}
               </div>
-              {users.every((user) => user.role !== "teacher") && <p className="text-sm text-black/50">No teachers available.</p>}
+              {users.every((user) => user.role !== "teacher") && <p className="text-sm text-black/50">{t("No teachers available.")}</p>}
             </section>
           )}
         </div>
@@ -506,15 +510,15 @@ export function SettingsPage() {
             <div className="px-5 py-4 border-b border-stone-200 flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
                 <UserCog className="size-5 text-brand" />
-                <h3 className="font-display font-bold">User Management</h3>
-                <span className="text-xs text-black/40">({filteredUsers.length} users)</span>
+                <h3 className="font-display font-bold">{t("User Management")}</h3>
+                <span className="text-xs text-black/40">({filteredUsers.length} {t("users")})</span>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowNew(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand text-white text-sm font-bold hover:bg-brand/90 transition-colors"
                 >
-                  <Plus className="size-4" /> Add User
+                  <Plus className="size-4" /> {t("Add User")}
                 </button>
               </div>
             </div>
@@ -526,7 +530,7 @@ export function SettingsPage() {
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name, username, phone..."
+                  placeholder={t("Search by name, username, phone...")}
                   className="w-full pl-10 pr-4 py-2 rounded-xl border border-stone-200 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand text-sm"
                 />
               </div>
@@ -535,10 +539,10 @@ export function SettingsPage() {
                 onChange={(e) => setRoleFilter(e.target.value)}
                 className="px-3 py-2 rounded-xl border border-stone-200 bg-white text-sm font-medium"
               >
-                <option value="all">All Roles</option>
-                <option value="admin">Admin</option>
-                <option value="bursar">Bursar</option>
-                <option value="teacher">Teacher</option>
+                <option value="all">{t("All Roles")}</option>
+                <option value="admin">{t("Admin")}</option>
+                <option value="bursar">{t("Bursar")}</option>
+                <option value="teacher">{t("Teacher")}</option>
               </select>
             </div>
 
@@ -547,19 +551,19 @@ export function SettingsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-stone-50 text-left text-[10px] uppercase tracking-widest text-black/50 font-bold">
                   <tr>
-                    <th className="px-5 py-3">Name</th>
-                    <th className="px-5 py-3">Username</th>
-                    <th className="px-5 py-3">Phone</th>
-                    <th className="px-5 py-3">Role</th>
-                    <th className="px-5 py-3">Academic Year</th>
-                    <th className="px-5 py-3 text-right">Actions</th>
+                    <th className="px-5 py-3">{t("Name")}</th>
+                    <th className="px-5 py-3">{t("Username")}</th>
+                    <th className="px-5 py-3">{t("Phone")}</th>
+                    <th className="px-5 py-3">{t("Role")}</th>
+                    <th className="px-5 py-3">{t("Academic Year")}</th>
+                    <th className="px-5 py-3 text-right">{t("Actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {filteredUsers.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="text-center py-12 text-black/40">
-                        No users found matching your filters.
+                        {t("No users found matching your filters.")}
                       </td>
                     </tr>
                   ) : (
@@ -570,7 +574,7 @@ export function SettingsPage() {
                         <td className="px-5 py-3 text-sm">{user.phone}</td>
                         <td className="px-5 py-3">
                           <span className={`text-xs px-2 py-1 rounded-full font-bold ${getRoleBadge(user.role)}`}>
-                            {user.role}
+                            {t(user.role)}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-sm">{user.acedemicYear}</td>
@@ -605,8 +609,8 @@ export function SettingsPage() {
 
           {/* System Cards */}
           <div className="grid gap-4">
-            <Card icon={Shield} title="Security & Roles" desc="Teachers see Mark Entry, Classes and Report Cards only. Settings, Teachers and Promotion are hidden from non-admin roles.">
-              <span className="text-xs px-2 py-1 rounded-full bg-brand/10 text-brand font-bold">Active</span>
+            <Card icon={Shield} title={t("Security & Roles")} desc={t("Teachers see Mark Entry, Classes and Report Cards only. Settings, Teachers and Promotion are hidden from non-admin roles.")}>
+              <span className="text-xs px-2 py-1 rounded-full bg-brand/10 text-brand font-bold">{t("Active")}</span>
             </Card>
           </div>
         </>
@@ -644,6 +648,7 @@ function UserDialog({
   onSave: (user: User) => Promise<boolean | void>;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState<User>(initial);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -660,25 +665,25 @@ function UserDialog({
     const newErrors: { [key: string]: string } = {};
 
     if (!form.name.trim()) {
-      newErrors.name = "Name is required";
+      newErrors.name = t("Name is required");
     }
     if (!form.username.trim()) {
-      newErrors.username = "Username is required";
+      newErrors.username = t("Username is required");
     } else if (form.username.length < 3) {
-      newErrors.username = "Username must be at least 3 characters";
+      newErrors.username = t("Username must be at least 3 characters");
     }
     if (!form.phone.trim()) {
-      newErrors.phone = "Phone number is required";
+      newErrors.phone = t("Phone number is required");
     } else if (!/^[0-9+\-\s()]{8,}$/.test(form.phone)) {
-      newErrors.phone = "Invalid phone number format";
+      newErrors.phone = t("Invalid phone number format");
     }
     if (!form.role) {
-      newErrors.role = "Role is required";
+      newErrors.role = t("Role is required");
     }
     if (!form.acedemicYear) {
-      newErrors.acedemicYear = "Academic year is required";
+      newErrors.acedemicYear = t("Academic year is required");
     } else if (!/^\d{4}-\d{4}$/.test(form.acedemicYear)) {
-      newErrors.acedemicYear = "Use format YYYY-YYYY (e.g., 2024-2025)";
+      newErrors.acedemicYear = t("Use format YYYY-YYYY (e.g., 2024-2025)");
     }
 
     setErrors(newErrors);
@@ -704,26 +709,26 @@ function UserDialog({
     <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={onCancel}>
       <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-display font-bold text-xl mb-1">
-          {isEditing ? "Edit User" : "Add User"}
+          {isEditing ? t("Edit User") : t("Add User")}
         </h3>
         <p className="text-xs text-black/50 mb-5">
-          {isEditing ? "Update user details below." : "Create a new user account."}
+          {isEditing ? t("Update user details below.") : t("Create a new user account.")}
         </p>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-bold text-black/50">Full Name*</label>
+            <label className="block text-[10px] uppercase tracking-widest font-bold text-black/50">{t("Full Name")}*</label>
             <input
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               className={`w-full px-3 py-2 rounded-lg border ${errors.name ? 'border-red-500' : 'border-stone-200'} bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition-colors`}
-              placeholder="John Doe"
+              placeholder={t("Example: Jean Dupont")}
             />
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
           </div>
 
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-bold text-black/50">Username*</label>
+            <label className="block text-[10px] uppercase tracking-widest font-bold text-black/50">{t("Username")}*</label>
             <input
               value={form.username}
               onChange={(e) => set("username", e.target.value)}
@@ -734,7 +739,7 @@ function UserDialog({
           </div>
 
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-bold text-black/50">Phone*</label>
+            <label className="block text-[10px] uppercase tracking-widest font-bold text-black/50">{t("Phone")}*</label>
             <input
               value={form.phone}
               onChange={(e) => set("phone", e.target.value)}
@@ -745,21 +750,21 @@ function UserDialog({
           </div>
 
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-bold text-black/50">Role*</label>
+            <label className="block text-[10px] uppercase tracking-widest font-bold text-black/50">{t("Role")}*</label>
             <select
               value={form.role}
               onChange={(e) => set("role", e.target.value as "teacher" | "admin" | "bursar")}
               className={`w-full px-3 py-2 rounded-lg border ${errors.role ? 'border-red-500' : 'border-stone-200'} bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition-colors`}
             >
-              <option value="teacher">Teacher</option>
-              <option value="admin">Admin</option>
-              <option value="bursar">Bursar</option>
+              <option value="teacher">{t("Teacher")}</option>
+              <option value="admin">{t("Admin")}</option>
+              <option value="bursar">{t("Bursar")}</option>
             </select>
             {errors.role && <p className="text-xs text-red-500 mt-1">{errors.role}</p>}
           </div>
 
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-bold text-black/50">Academic Year*</label>
+            <label className="block text-[10px] uppercase tracking-widest font-bold text-black/50">{t("Academic Year")}*</label>
             <input
               value={form.acedemicYear}
               onChange={(e) => set("acedemicYear", e.target.value)}
@@ -771,17 +776,17 @@ function UserDialog({
 
           {form.role === "teacher" && (
             <div className="p-3 bg-stone-50 rounded-lg text-xs text-black/60">
-              <p>Teachers can access: Mark Entry, Classes, Report Cards</p>
+              <p>{t("Teachers can access: Mark Entry, Classes, Report Cards")}</p>
             </div>
           )}
           {form.role === "admin" && (
             <div className="p-3 bg-purple-50 rounded-lg text-xs text-purple-700">
-              <p>Admins have full access to all features and settings.</p>
+              <p>{t("Admins have full access to all features and settings.")}</p>
             </div>
           )}
           {form.role === "bursar" && (
             <div className="p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
-              <p>Bursars can manage fees, payments, and financial reports.</p>
+              <p>{t("Bursars can manage fees, payments, and financial reports.")}</p>
             </div>
           )}
         </div>
@@ -792,7 +797,7 @@ function UserDialog({
             className="px-4 py-2.5 rounded-xl border border-stone-200 text-sm font-semibold hover:bg-stone-50 transition-colors"
             disabled={saving}
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             onClick={handleSave}
@@ -800,7 +805,7 @@ function UserDialog({
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {saving && <Loader2 className="size-4 animate-spin" />}
-            {saving ? "Saving..." : isEditing ? "Update User" : "Create User"}
+            {saving ? t("Saving...") : isEditing ? t("Update User") : t("Create User")}
           </button>
         </div>
       </div>

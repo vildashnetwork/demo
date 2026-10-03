@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Student from "../models/Students.js";
 import SchoolClass from "../models/SchoolClass.js";
 import { storeStudentPhoto } from "../services/cloudinaryStudentPhotos.js";
+import { normalizeSchoolSection } from "../utils/schoolSection.js";
 import {
     generateMatricule,
     previewMatricule,
@@ -14,8 +15,8 @@ import {
 
 const router = express.Router();
 const sectionFilter = (req) => {
-    const section = String(req.query.section || req.get("x-school-section") || "").trim().toLowerCase();
-    return ["englophone", "francophone"].includes(section) ? { section } : {};
+    const section = normalizeSchoolSection(req.query.section || req.get("x-school-section") || "", "");
+    return section ? { section } : {};
 };
 const getPublicBaseUrl = (req) => {
     const forwarded = String(req.get("x-forwarded-proto") || "").split(",")[0].trim();
@@ -379,7 +380,7 @@ router.post("/students", async (req, res) => {
         }
 
         if (!studentData.section) {
-            studentData.section = schoolClass.schoolSection || 'englophone';
+            studentData.section = normalizeSchoolSection(schoolClass.schoolSection || 'englophone', 'englophone');
         }
         if (schoolClass.schoolSection && studentData.section !== schoolClass.schoolSection) {
             return res.status(400).json({ success: false, message: "Student section must match the selected class section" });
@@ -412,7 +413,10 @@ router.post("/students", async (req, res) => {
 
         const student = new Student(studentData);
         if (student.photoUrl) {
-            student.photoUrl = await storeStudentPhoto(student.photoUrl, student.section, String(student._id), getPublicBaseUrl(req));
+            const photoData = await storeStudentPhoto(student.photoUrl, student.section, String(student._id), getPublicBaseUrl(req));
+            student.photoUrl = photoData.photoUrl || student.photoUrl;
+            student.photoCloudinaryUrl = photoData.photoCloudinaryUrl || "";
+            student.photoLocalUrl = photoData.photoLocalUrl || "";
         }
         await student.save();
 
@@ -505,7 +509,7 @@ router.post("/students/bulk", async (req, res) => {
                 return res.status(400).json({ success: false, message: `Invalid class for ${payload.fullName}` });
             }
             if (!payload.section) {
-                payload.section = schoolClass.schoolSection || 'englophone';
+                payload.section = normalizeSchoolSection(schoolClass.schoolSection || 'englophone', 'englophone');
             }
             if (schoolClass.schoolSection && payload.section !== schoolClass.schoolSection) {
                 return res.status(400).json({ success: false, message: `Student section does not match class section for ${payload.fullName}` });
@@ -793,7 +797,7 @@ router.put("/students/:id", async (req, res) => {
                 return res.status(400).json({ success: false, message: "Select a valid class" });
             }
             if (!payload.section) {
-                payload.section = schoolClass.schoolSection || 'englophone';
+                payload.section = normalizeSchoolSection(schoolClass.schoolSection || 'englophone', 'englophone');
             }
             if (schoolClass.schoolSection && payload.section !== schoolClass.schoolSection) {
                 return res.status(400).json({ success: false, message: "Student section must match the selected class section" });
@@ -819,7 +823,10 @@ router.put("/students/:id", async (req, res) => {
         }
 
         if (payload.photoUrl) {
-            payload.photoUrl = await storeStudentPhoto(payload.photoUrl, payload.section || existingStudent.section, id, getPublicBaseUrl(req));
+            const photoData = await storeStudentPhoto(payload.photoUrl, payload.section || existingStudent.section, id, getPublicBaseUrl(req));
+            payload.photoUrl = photoData.photoUrl || payload.photoUrl;
+            payload.photoCloudinaryUrl = photoData.photoCloudinaryUrl || "";
+            payload.photoLocalUrl = photoData.photoLocalUrl || "";
         }
 
         const updatedStudent = await Student.findByIdAndUpdate(
@@ -897,7 +904,7 @@ router.patch("/students/:id", async (req, res) => {
         if (payload.classId) {
             const schoolClass = await SchoolClass.findById(payload.classId);
             if (schoolClass) {
-                if (!payload.section) payload.section = schoolClass.schoolSection || 'englophone';
+                if (!payload.section) payload.section = normalizeSchoolSection(schoolClass.schoolSection || 'englophone', 'englophone');
                 if (schoolClass.schoolSection && payload.section !== schoolClass.schoolSection) {
                     return res.status(400).json({ success: false, message: "Student section must match the selected class section" });
                 }
@@ -905,7 +912,10 @@ router.patch("/students/:id", async (req, res) => {
         }
 
         if (payload.photoUrl) {
-            payload.photoUrl = await storeStudentPhoto(payload.photoUrl, payload.section || existingStudent.section, id, getPublicBaseUrl(req));
+            const photoData = await storeStudentPhoto(payload.photoUrl, payload.section || existingStudent.section, id, getPublicBaseUrl(req));
+            payload.photoUrl = photoData.photoUrl || payload.photoUrl;
+            payload.photoCloudinaryUrl = photoData.photoCloudinaryUrl || "";
+            payload.photoLocalUrl = photoData.photoLocalUrl || "";
         }
 
         const updatedStudent = await Student.findByIdAndUpdate(
@@ -1013,7 +1023,10 @@ router.patch("/students/:id/update-photo", async (req, res) => {
             });
         }
 
-        student.photoUrl = await storeStudentPhoto(photoUrl, student.section, id, getPublicBaseUrl(req));
+        const photoData = await storeStudentPhoto(photoUrl, student.section, id, getPublicBaseUrl(req));
+        student.photoUrl = photoData.photoUrl || photoUrl;
+        student.photoCloudinaryUrl = photoData.photoCloudinaryUrl || "";
+        student.photoLocalUrl = photoData.photoLocalUrl || "";
         await student.save();
 
         res.status(200).json({

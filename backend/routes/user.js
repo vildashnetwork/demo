@@ -465,10 +465,11 @@ import express from "express";
 import mongoose from "mongoose";
 import User from "../models/User.js";
 import Timetable from '../models/Timetable.js';
+import { normalizeSchoolSection } from "../utils/schoolSection.js";
 const router = express.Router();
 const getSectionFilter = (req) => {
-  const section = String(req.query.section || req.get('x-school-section') || '').trim().toLowerCase();
-  return ['englophone', 'francophone'].includes(section) ? { section } : {};
+  const section = normalizeSchoolSection(req.query.section || req.get('x-school-section') || '', '');
+  return section ? { section } : {};
 };
 
 // ============================================
@@ -893,7 +894,7 @@ router.post("/users", async (req, res) => {
   try {
     const userData = req.body;
 
-    userData.section = userData.section || req.get('x-school-section') || 'englophone';
+    userData.section = normalizeSchoolSection(userData.section || req.get('x-school-section') || 'englophone', 'englophone');
 
     const existingUser = await User.findOne({
       $or: [

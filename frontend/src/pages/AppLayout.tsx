@@ -3,10 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen, ClipboardEdit,
   FileText, Wallet, Settings, LogOut, Menu, X, Bell, ArrowUpRight,
-  Calendar, DollarSign, Download,
+  Calendar, DollarSign, Download, IdCard,
 } from "lucide-react";
 import { currentUser, logout } from "@/lib/auth";
-import { getStoredSchoolSection, setStoredSchoolSection } from "@/lib/schoolSystem";
+import { setStoredSchoolSection } from "@/lib/schoolSystem";
 import type { SchoolSection } from "@/lib/schoolSystem";
 import { useLanguage } from "@/lib/language";
 import type { User, Role } from "@/lib/types";
@@ -23,6 +23,7 @@ const ALL: Role[] = ["super_admin", "admin", "teacher", "bursar", "parent"];
 const NAV: NavItem[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true, roles: ["super_admin", "admin", "bursar", "parent"] },
   { to: "/app/students", label: "Students", icon: Users, roles: ["super_admin", "admin", "bursar"] },
+  { to: "/app/student-id-cards", label: "ID Cards", icon: IdCard, roles: ["super_admin", "admin"] },
   { to: "/app/teachers", label: "Teachers", icon: GraduationCap, roles: ["super_admin", "admin"] },
   { to: "/app/classes", label: "Classes & Subjects", icon: BookOpen, roles: ["super_admin", "admin"] },
   { to: "/app/mark-entry", label: "Mark Entry", icon: ClipboardEdit, roles: ["super_admin", "admin", "teacher"] },
@@ -39,52 +40,57 @@ const NAV: NavItem[] = [
   { to: "/app/settings", label: "School Settings", icon: Settings, roles: ["super_admin", "admin"] },
 ];
 
-const navText = getStoredSchoolSection() === "francophone"
-  ? {
-    dashboard: "Tableau de bord",
-    students: "Élèves",
-    teachers: "Enseignants",
-    classes: "Classes & matières",
-    markEntry: "Saisie des notes",
-    studentAttendance: "Présence des élèves",
-    teacherTimetable: "Emploi du temps enseignant",
-    teacherAttendance: "Présence enseignants",
-    reportCards: "Bulletins",
-    bulkReportCards: "Bulletins en masse",
-    classLists: "Listes de classes",
-    promotion: "Promotion",
-    fees: "Frais & finance",
-    teacherSalaries: "Salaires enseignants",
-    timetable: "Emploi du temps",
-    settings: "Paramètres de l’école",
-    overview: "Vue d’ensemble",
-    signOut: "Déconnexion",
-  }
-  : {
-    dashboard: "Dashboard",
-    students: "Students",
-    teachers: "Teachers",
-    classes: "Classes & Subjects",
-    markEntry: "Mark Entry",
-    studentAttendance: "Student Attendance",
-    teacherTimetable: "Teacher Timetable",
-    teacherAttendance: "Teacher Attendance",
-    reportCards: "Report Cards",
-    bulkReportCards: "Bulk Report Cards",
-    classLists: "Class Lists",
-    promotion: "Promotion",
-    fees: "Fees & Finance",
-    teacherSalaries: "Teacher Salaries",
-    timetable: "Timetable",
-    settings: "School Settings",
-    overview: "Overview Dashboard",
-    signOut: "Sign out",
-  };
+function getNavText(section: SchoolSection) {
+  return section === "francophone"
+    ? {
+      dashboard: "Tableau de bord",
+      students: "Élèves",
+      studentIdCards: "Cartes d’identités",
+      teachers: "Enseignants",
+      classes: "Classes & matières",
+      markEntry: "Saisie des notes",
+      studentAttendance: "Présence des élèves",
+      teacherTimetable: "Emploi du temps enseignant",
+      teacherAttendance: "Présence enseignants",
+      reportCards: "Bulletins",
+      bulkReportCards: "Bulletins en masse",
+      classLists: "Listes de classes",
+      promotion: "Promotion",
+      fees: "Frais & finance",
+      teacherSalaries: "Salaires enseignants",
+      timetable: "Emploi du temps",
+      settings: "Paramètres de l’école",
+      overview: "Vue d’ensemble",
+      signOut: "Déconnexion",
+    }
+    : {
+      dashboard: "Dashboard",
+      students: "Students",
+      studentIdCards: "ID Cards",
+      teachers: "Teachers",
+      classes: "Classes & Subjects",
+      markEntry: "Mark Entry",
+      studentAttendance: "Student Attendance",
+      teacherTimetable: "Teacher Timetable",
+      teacherAttendance: "Teacher Attendance",
+      reportCards: "Report Cards",
+      bulkReportCards: "Bulk Report Cards",
+      classLists: "Class Lists",
+      promotion: "Promotion",
+      fees: "Fees & Finance",
+      teacherSalaries: "Teacher Salaries",
+      timetable: "Timetable",
+      settings: "School Settings",
+      overview: "Overview Dashboard",
+      signOut: "Sign out",
+    };
+}
 
 export function AppLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { section, t } = useLanguage();
+  const navText = getNavText(section);
   const [user, setUser] = useState<User | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -114,28 +120,29 @@ export function AppLayout() {
           </div>
           <div>
             <div className="font-display font-bold uppercase tracking-tight">BCHS DOUALA</div>
-            <div className="text-[10px] text-white/40 uppercase tracking-widest">SCHOOL PORTAL</div>
+            <div className="text-[10px] text-white/40 uppercase tracking-widest">{t("SCHOOL PORTAL")}</div>
           </div>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {items.map((item) => {
-            const translatedLabel = getStoredSchoolSection() === "francophone"
+            const translatedLabel = section === "francophone"
               ? item.to === "/app" ? navText.dashboard :
                 item.to === "/app/students" ? navText.students :
-                  item.to === "/app/teachers" ? navText.teachers :
-                    item.to === "/app/classes" ? navText.classes :
-                      item.to === "/app/mark-entry" ? navText.markEntry :
-                        item.to === "/app/student-attendance" ? navText.studentAttendance :
-                          item.to === "/app/teacher-timetable" ? navText.teacherTimetable :
-                            item.to === "/app/teacher-attendance" ? navText.teacherAttendance :
-                              item.to === "/app/report-cards" ? navText.reportCards :
-                                item.to === "/app/report-cards/bulk" ? navText.bulkReportCards :
-                                  item.to === "/app/class-lists" ? navText.classLists :
-                                    item.to === "/app/promotion" ? navText.promotion :
-                                      item.to === "/app/fees" ? navText.fees :
-                                        item.to === "/app/teacher-salaries" ? navText.teacherSalaries :
-                                          item.to === "/app/timetable" ? navText.timetable :
-                                            item.to === "/app/settings" ? navText.settings : item.label
+                  item.to === "/app/student-id-cards" ? navText.studentIdCards :
+                    item.to === "/app/teachers" ? navText.teachers :
+                      item.to === "/app/classes" ? navText.classes :
+                        item.to === "/app/mark-entry" ? navText.markEntry :
+                          item.to === "/app/student-attendance" ? navText.studentAttendance :
+                            item.to === "/app/teacher-timetable" ? navText.teacherTimetable :
+                              item.to === "/app/teacher-attendance" ? navText.teacherAttendance :
+                                item.to === "/app/report-cards" ? navText.reportCards :
+                                  item.to === "/app/report-cards/bulk" ? navText.bulkReportCards :
+                                    item.to === "/app/class-lists" ? navText.classLists :
+                                      item.to === "/app/promotion" ? navText.promotion :
+                                        item.to === "/app/fees" ? navText.fees :
+                                          item.to === "/app/teacher-salaries" ? navText.teacherSalaries :
+                                            item.to === "/app/timetable" ? navText.timetable :
+                                              item.to === "/app/settings" ? navText.settings : item.label
               : item.label;
             return (
               <NavLink
@@ -158,7 +165,7 @@ export function AppLayout() {
             </div>
             <div className="min-w-0">
               <div className="text-sm font-semibold truncate">{user.name}</div>
-              <div className="text-[10px] text-white/40 uppercase tracking-widest">{user.role.replace("_", " ")}</div>
+              <div className="text-[10px] text-white/40 uppercase tracking-widest">{t(user.role.replace("_", " "))}</div>
             </div>
           </div>
           <button
@@ -173,8 +180,8 @@ export function AppLayout() {
       <main className="flex-1 min-w-0">
         <header className="sticky top-0 z-30 h-16 bg-white border-b border-stone-200 px-6 lg:px-8 flex items-center justify-between">
           <div className="pl-10 lg:pl-0">
-            <div className="text-xs text-black/40 font-medium">BCHS DOUALA · School Portal</div>
-            <div className="text-sm font-semibold">{getPageTitle(pathname)}</div>
+            <div className="text-xs text-black/40 font-medium">BCHS DOUALA · {t("School Portal")}</div>
+            <div className="text-sm font-semibold">{getPageTitle(pathname, section)}</div>
           </div>
           <div className="flex items-center gap-3">
             <div className="inline-flex rounded-lg border border-stone-200 bg-stone-50 p-1" aria-label={t("School System")}>
@@ -186,7 +193,6 @@ export function AppLayout() {
                   onClick={() => {
                     if (option === section) return;
                     setStoredSchoolSection(option);
-                    window.location.reload();
                   }}
                   className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${section === option ? "bg-white text-brand shadow-sm" : "text-black/55 hover:text-black"}`}
                 >
@@ -199,7 +205,7 @@ export function AppLayout() {
             </button>
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-stone-100 rounded-full">
               <span className="size-2 bg-brand rounded-full" />
-              <span className="text-xs font-semibold">{getStoredSchoolSection() === "francophone" ? "En direct" : "Live"}</span>
+              <span className="text-xs font-semibold">{t("Live")}</span>
             </div>
           </div>
         </header>
@@ -209,10 +215,11 @@ export function AppLayout() {
   );
 }
 
-function getPageTitle(p: string) {
-  const isFrancophoneMode = getStoredSchoolSection() === "francophone";
+function getPageTitle(p: string, section: SchoolSection) {
+  const isFrancophoneMode = section === "francophone";
   if (p === "/app") return isFrancophoneMode ? "Vue d’ensemble" : "Overview Dashboard";
   if (p.startsWith("/app/students")) return isFrancophoneMode ? "Élèves" : "Students";
+  if (p.startsWith("/app/student-id-cards")) return isFrancophoneMode ? "Cartes d’identités" : "ID Cards";
   if (p.startsWith("/app/teachers")) return isFrancophoneMode ? "Enseignants" : "Teachers";
   if (p.startsWith("/app/teacher-attendance")) return isFrancophoneMode ? "Présence enseignants" : "Teacher Attendance";
   if (p.startsWith("/app/teacher-salaries")) return isFrancophoneMode ? "Salaires enseignants" : "Teacher Salaries";

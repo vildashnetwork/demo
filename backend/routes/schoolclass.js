@@ -1,12 +1,13 @@
 import express from "express";
 import mongoose from "mongoose";
 import SchoolClass from "../models/SchoolClass.js";
+import { normalizeSchoolSection } from "../utils/schoolSection.js";
 
 const router = express.Router();
 
 const sectionFilter = (req) => {
-    const section = String(req.query.section || req.get("x-school-section") || "").trim().toLowerCase();
-    return ["englophone", "francophone"].includes(section) ? { schoolSection: section } : {};
+    const section = normalizeSchoolSection(req.query.section || req.get("x-school-section") || "", "");
+    return section ? { schoolSection: section } : {};
 };
 const isClassLevelAllowed = (className, section) => {
     const levels = section === "francophone"
@@ -182,7 +183,7 @@ router.post("/classes", async (req, res) => {
     try {
         const classData = req.body;
 
-        classData.schoolSection = classData.schoolSection || req.get("x-school-section") || 'englophone';
+        classData.schoolSection = normalizeSchoolSection(classData.schoolSection || req.get("x-school-section") || 'englophone', 'englophone');
         if (!isClassLevelAllowed(classData.className, classData.schoolSection)) {
             return res.status(400).json({ success: false, message: "Class level does not belong to the selected school section" });
         }

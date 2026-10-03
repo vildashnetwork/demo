@@ -12,7 +12,7 @@ import axios from "axios";
 import html2canvas from "html2canvas-pro";
 import { getStoredSchoolSection, type SchoolSection } from "@/lib/schoolSystem";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.com/api";
+const API_BASE = import.meta.env.VITE_API_URL;
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 const CYCLE_RATES = { first: 500, second: 700 } as const;
 
