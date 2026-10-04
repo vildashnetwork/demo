@@ -1,3 +1,0 @@
-total-error-lines: 6
-students-tsx-errors:
-
