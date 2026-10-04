@@ -7,7 +7,7 @@ import axios from "axios";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "https://manfess-back.onrender.com/api";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 // Types
 interface Student {
@@ -538,19 +538,30 @@ export function StudentsPage() {
           <h1 className="font-display text-3xl font-extrabold tracking-tight">Students</h1>
           <p className="text-sm text-black/60 mt-1">{students.length} total · {filtered.length} shown</p>
         </div>
-        <div className="flex w-full gap-2 sm:w-auto">
-          <button onClick={printOwingStudents} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-stone-50 sm:flex-none sm:px-4">
-            <Printer className="size-4" /> Print Owing
-          </button>
-          <button onClick={exportCSV} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-stone-50 sm:flex-none sm:px-4">
-            <Download className="size-4" /> CSV
-          </button>
-          {/* <button onClick={exportPDF} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 bg-white text-sm font-semibold hover:bg-stone-50">
-            <FileText className="size-4" /> PDF
-          </button> */}
+        <div className="flex w-full flex-col gap-2 xs:flex-row sm:w-auto">
+          <div className="grid w-full grid-cols-2 gap-2 xs:flex xs:w-auto xs:flex-1 sm:flex-none">
+            <button
+              onClick={printOwingStudents}
+              className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold whitespace-nowrap hover:bg-stone-50 sm:flex-none sm:px-4"
+            >
+              <Printer className="size-4 shrink-0" />
+              <span className="truncate">Print Owing</span>
+            </button>
+            <button
+              onClick={exportCSV}
+              className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold whitespace-nowrap hover:bg-stone-50 sm:flex-none sm:px-4"
+            >
+              <Download className="size-4 shrink-0" />
+              <span className="truncate">CSV</span>
+            </button>
+          </div>
           {canEdit && (
-            <button onClick={() => setShowNew(true)} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-brand px-3 py-2.5 text-sm font-semibold text-white hover:bg-brand/90 sm:flex-none sm:px-4">
-              <Plus className="size-4" /> Add Student
+            <button
+              onClick={() => setShowNew(true)}
+              className="flex min-h-10 w-full min-w-0 items-center justify-center gap-2 rounded-xl bg-brand px-3 py-2.5 text-sm font-semibold whitespace-nowrap text-white hover:bg-brand/90 xs:w-auto xs:flex-1 sm:w-auto sm:flex-none sm:px-4"
+            >
+              <Plus className="size-4 shrink-0" />
+              <span className="truncate">Add Student</span>
             </button>
           )}
         </div>
