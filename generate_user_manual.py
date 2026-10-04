@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
-"""Generate a source-aware BCHS DOUALA user manual as a Word document.
+"""Build the BCHS DOUALA user manual as a Word document.
 
-Run from any directory with:
+The people who will read this manual may never have used a computer before,
+so the wording is kept simple and every step says exactly what to click.
+Everyday staff never see technical words such as "route" or "server".
+
+Run it from any folder with:
     python generate_user_manual.py
 
-The output is written to User_Manual.docx beside this script. The generator
-uses the frontend navigation and route declarations for its role/tab matrix,
-and scans backend route files for the technical appendix.
+It saves User_Manual.docx next to this script. The list of screens and the
+job (role) table are read straight from the application so the manual stays
+in step with the software. All of the words the reader sees are written in
+the TAB_GUIDE, ROLE_GUIDANCE, WORKFLOWS, COMPUTER_BASICS, GLOSSARY,
+HELP_TOPICS, QUICK_TASKS and GOOD_PRACTICES sections below, so those are the
+parts to edit when you want to change the wording for your school.
 """
 
 from __future__ import annotations
@@ -45,149 +52,244 @@ PALE_GRAY = "F3F6F9"
 
 TAB_GUIDE = {
     "Dashboard": {
-        "purpose": "Review school-wide totals, performance trends, class and subject averages, and the excellence board.",
+        "purpose": "The first screen you see after signing in. It shows a summary of the whole school: how many students and teachers there are, how the classes are doing, and the best students.",
         "steps": [
-            "Open Dashboard from the left navigation.",
-            "Use the Classes and Subjects controls to change the average chart.",
-            "Review the trend and top-student summaries; use the available retry action if the summary cannot load.",
+            "On the left side of the screen, click Dashboard.",
+            "To change the class or subject shown in the chart, use the Class and Subject boxes near the top.",
+            "Read the coloured cards for the school totals.",
+            "Look at the chart to compare class and subject averages.",
+            "Scroll down to see the best-performing students.",
+            "If a part of the page does not load, click the Try again button.",
+        ],
+        "careful": [
+            "The Dashboard only shows information. It does not change any records.",
+            "The numbers update as soon as new marks, attendance, or payments are saved.",
         ],
     },
     "Students": {
-        "purpose": "Find and maintain student profiles, class placement, guardian contact details, photos, and fee balances.",
+        "purpose": "The place where you keep the details of every student: name, class, parent or guardian phone number, photo, and fees.",
         "steps": [
-            "Search by student or parent details, then narrow the list with class and fee filters.",
-            "Choose Add Student to register a student, or use the row actions to edit or remove a profile.",
-            "Confirm class, admission number, parent contact, fees, and photo before saving.",
+            "Click Students on the left.",
+            "To find a student quickly, type a name in the Search box. You can also choose a class in the Class box, or a payment status in the Fees box.",
+            "To add a new student, click the Add Student button at the top right. Fill in the form one page at a time and click Continue. On the last page, click Add Student to save.",
+            "To change a student's details, click the Edit button on that student's row.",
+            "To remove a student, click the Delete button on the row and confirm the message that appears.",
+        ],
+        "careful": [
+            "The admission number (matricule) is created automatically. Do not invent one.",
+            "Check the spelling of the student's name and the parent's phone number before you save.",
+            "Delete removes a record for good. If you are not sure, edit the record instead of deleting it.",
         ],
     },
     "ID Cards": {
-        "purpose": "Prepare student ID cards and download them as a PDF sized to the selected card dimensions.",
+        "purpose": "Makes student identity cards and saves them as a file you can print.",
         "steps": [
-            "Filter the roster by class or search by student name or matricule.",
-            "Select a preset or enter custom width and height; review the card preview.",
-            "Download the PDF. The current export puts one full-size card on each page for the filtered students.",
+            "Click ID Cards on the left.",
+            "Choose a class in the Class box, or type a name in the Search box.",
+            "Choose a card size from the list, or type your own width and height.",
+            "Look at the preview on the screen to check the card looks correct.",
+            "Click Download PDF. The file is saved on your computer, usually in the Downloads folder.",
+            "Open the file and print it. There is one card on each page.",
+        ],
+        "careful": [
+            "The file is a PDF. It always looks the same on every computer and is made for printing.",
         ],
     },
     "Teachers": {
-        "purpose": "Maintain teacher profiles, qualifications, contact information, subjects, and assigned classes.",
+        "purpose": "The place where you keep the details of every teacher: name, qualification, phone number, the subjects they teach, and the classes they are given.",
         "steps": [
-            "Search the teacher list to locate an existing profile.",
-            "Add or edit the profile, then assign the correct subjects and classes.",
-            "Check assignments before building the timetable or calculating salary.",
+            "Click Teachers on the left.",
+            "Use the Search box to find a teacher.",
+            "Click Add Teacher to add a new teacher, or the Edit button on a row to change details.",
+            "In the form, tick the subjects the teacher teaches and the classes the teacher is given.",
+            "Click Save.",
+        ],
+        "careful": [
+            "The timetable and the salary calculation both use these choices, so keep them up to date.",
         ],
     },
     "Classes & Subjects": {
-        "purpose": "Set up school classes, departments, cycles, academic years, tuition, subjects, coefficients, and teaching assignments.",
+        "purpose": "Sets up the building blocks of the school: the classes, the subjects that are taught, and how much each class pays.",
         "steps": [
-            "Create classes first, with the correct form, department, cycle, academic year, and fee settings.",
-            "Create subjects and set their code, coefficient, and periods per week.",
-            "Assign teachers and classes to subjects; use the search and filters to review the setup.",
+            "Click Classes & Subjects on the left.",
+            "Start with the classes. Click Add Class and fill in the class name, the section, the cycle, the academic year, and the fee.",
+            "Then work on the subjects. Click Add Subject and fill in the subject name, its code, its coefficient, and how many periods a week it is taught.",
+            "Give each subject to the teachers and the classes that teach it.",
+            "Use the Search box and the filter boxes to check your work.",
+        ],
+        "careful": [
+            "Set up the classes and the subjects before you add students, marks, or a timetable.",
+            "The coefficient decides how much a subject counts in a student's average. Ask the school office for the correct values.",
         ],
     },
     "Mark Entry": {
-        "purpose": "Record and review student marks by class, subject, and sequence.",
+        "purpose": "The place where teachers type the marks the students scored in a subject for a sequence or a term.",
         "steps": [
-            "Select a class, subject, and sequence, then locate students with search if needed.",
-            "Enter marks on the 0 to 20 scale. The page saves a local draft while you work.",
-            "Use Save to send pending changes to the server; check the saved or unsaved status message.",
+            "Click Mark Entry on the left.",
+            "Choose the Class, the Subject, and the Sequence in the boxes at the top.",
+            "Type each student's mark out of 20 in the box next to their name.",
+            "Your work is kept safe while you type, even before you save.",
+            "Click Save Marks to send everything to the school's central computer, and wait for the message that says the marks were saved.",
+        ],
+        "careful": [
+            "Marks are out of 20. Type numbers only; do not add the percent sign or letters.",
+            "Do not close the page until you see the message that the marks are saved.",
+            "If the page still says there are changes that are not saved, click Save Marks again.",
         ],
     },
     "Student Attendance": {
-        "purpose": "Take the weekly student register for a selected class and date.",
+        "purpose": "The class register. Here you mark each student present or absent for the school week.",
         "steps": [
-            "Choose the date and class. The register displays the school week.",
-            "Mark students present for each weekday. Future days cannot be marked.",
-            "Save attendance and confirm the summary counts.",
+            "Click Student Attendance on the left.",
+            "Choose the Class and the Date at the top. The whole week is shown across the screen.",
+            "For each student and each day, click the box to mark the student present.",
+            "You cannot mark a day that has not happened yet.",
+            "Click Save Attendance, then check the totals shown at the bottom of the screen.",
+        ],
+        "careful": [
+            "Mark the attendance every day, because the report cards show it.",
         ],
     },
     "Teacher Timetable": {
-        "purpose": "Let a teacher review their schedule and submit availability once for timetable planning.",
+        "purpose": "For teachers. It shows the lessons a teacher must teach this week, and lets the teacher say when they are free to teach.",
         "steps": [
-            "Review today's or the weekly schedule and download the timetable if required.",
-            "Submit availability from the availability panel. Availability is a one-time teacher submission.",
-            "Contact an administrator for timetable changes; teachers do not edit or delete timetable entries here.",
+            "Click Teacher Timetable on the left.",
+            "Read today's lessons, or scroll down to see the whole week.",
+            "To say when you are free, open the availability part of the page and tick the times you can teach.",
+            "Click the Save button to send your availability. You can send it only once.",
+            "If the timetable looks wrong, speak to the school office.",
+        ],
+        "careful": [
+            "The availability form can be sent only once, so check it carefully before you click Save.",
+            "Teachers cannot add, change, or delete timetable entries here. The school office does that.",
         ],
     },
     "Teacher Attendance": {
-        "purpose": "Record teacher attendance and review weekly or monthly attendance summaries.",
+        "purpose": "Records which teachers came to work, when they arrived and left, and how many periods they taught.",
         "steps": [
-            "Select a date or reporting period and review the teacher register.",
-            "Record attendance status, check-in/check-out, hours, periods, or notes as applicable.",
-            "Save the register and verify the summary before leaving the page.",
+            "Click Teacher Attendance on the left.",
+            "Choose the day, or the period, that you want to record.",
+            "For each teacher, choose Present, Absent, Late, or Excused.",
+            "If the school asks for it, fill in the arrival time, the departure time, the hours, the periods, or a short note.",
+            "Click Save, then check the summary.",
+        ],
+        "careful": [
+            "Teacher pay is worked out from this screen, so the information must be correct.",
         ],
     },
     "Report Cards": {
-        "purpose": "Review student results and generate an individual report card.",
+        "purpose": "Shows one student's results and makes the report card (bulletin) for that student.",
         "steps": [
-            "Select the academic year, class, term, and student.",
-            "Review the student's marks, averages, position, and attendance details.",
-            "Use the available print or PDF action to produce the report card.",
+            "Click Report Cards on the left.",
+            "Choose the Academic Year, the Class, the Term, and the Student.",
+            "Read the marks, the average, the position in the class, and the attendance.",
+            "Click Print or Download PDF to make the report card.",
+        ],
+        "careful": [
+            "Read the report card carefully before you print it or send it to a parent.",
         ],
     },
     "Bulk Report Cards": {
-        "purpose": "Prepare and export report cards for multiple students in a class.",
+        "purpose": "Makes the report cards for a whole class at one time.",
         "steps": [
-            "Select the academic year, class, and term.",
-            "Review the roster and report-card previews for missing or incorrect information.",
-            "Download or print the generated set.",
+            "Click Bulk Report Cards on the left.",
+            "Choose the Academic Year, the Class, and the Term.",
+            "Look at the list and check that no student is missing.",
+            "Click Download PDF or Print to make all the report cards together.",
+        ],
+        "careful": [
+            "Save all the marks first. A report card made before the marks are saved will be incomplete.",
         ],
     },
     "Class Lists": {
-        "purpose": "Generate class lists and marksheets for a selected class and academic period.",
+        "purpose": "Makes printable class lists and mark sheets (marksheets) for a class.",
         "steps": [
-            "Choose the class, term, and sequence or report options.",
-            "Review the generated student and mark rows.",
-            "Export or print the list using the page actions.",
+            "Click Class Lists on the left.",
+            "Choose the Class and the Term, then choose the sequence or the type of list you want.",
+            "Read the list on the screen and check the students and the marks.",
+            "Click Download or Print to save or print the list.",
+        ],
+        "careful": [
+            "Check the class and the term before printing, so you do not print the wrong list.",
         ],
     },
     "Promotion": {
-        "purpose": "Review class performance, pass rates, ranked students, and promotion outcomes.",
+        "purpose": "Helps you decide which students move up to the next class at the end of the year.",
         "steps": [
-            "Select the academic year, class, and term.",
-            "Review the summary cards and ranked student list before making promotion decisions.",
-            "Use the available promotion and PDF actions after confirming the class results.",
+            "Click Promotion on the left.",
+            "Choose the Academic Year, the Class, and the Term.",
+            "Read the summary cards and the list of students, which is in order from the highest average to the lowest.",
+            "After the results have been checked, click the promotion button you need, or download the PDF.",
+        ],
+        "careful": [
+            "Check the results carefully. Promotion decisions should be agreed with the school leadership before you act.",
         ],
     },
     "Fees & Finance": {
-        "purpose": "Review student balances, record tuition or registration payments, and export fee reports.",
+        "purpose": "Shows how much each student has paid and how much is still owed, and lets you record payments.",
         "steps": [
-            "Filter students by class, payment status, or search text.",
-            "Open a student payment action, select the fee type, and enter the amount.",
-            "Save the payment and verify the updated balance; export or print reports when needed.",
+            "Click Fees & Finance on the left.",
+            "Find the student with the Search box, or by choosing a class or a payment status.",
+            "Click the payment button on the student's row.",
+            "Choose the fee type (for example Tuition or Registration) and type the amount received.",
+            "Click Save, then check the new balance shown for the student.",
+            "To keep a record, use the Export or Print buttons.",
+        ],
+        "careful": [
+            "Type the amount you really received, using numbers only.",
+            "Check the balance after saving. If it is wrong, tell the administrator at once.",
+            "Where possible, have a second person check the money that you record.",
         ],
     },
     "Teacher Salaries": {
-        "purpose": "Calculate teacher pay from attendance, scheduled periods, rates, and recorded salary payments.",
+        "purpose": "Works out how much each teacher should be paid, using their attendance, the periods they taught, and their rate.",
         "steps": [
-            "Choose the reporting period and review the attendance/pay summaries.",
-            "Check periods, rates, and deductions before generating or editing salary records.",
-            "Record payments only after confirming teacher and amount.",
+            "Click Teacher Salaries on the left.",
+            "Choose the period you are paying for.",
+            "Check the periods, the rates, and the deductions for each teacher.",
+            "Create the salary records.",
+            "Record the payment, then print or download the payslip.",
+        ],
+        "careful": [
+            "Record a payment only after you have checked the teacher's name and the amount.",
         ],
     },
     "Timetable": {
-        "purpose": "Configure the weekly schedule, generate a timetable, resolve conflicts, and manage timetable entries.",
+        "purpose": "The school timetable: which teacher teaches which subject, to which class, at which time.",
         "steps": [
-            "Confirm school hours, breaks, days, classes, subjects, and teacher assignments.",
-            "Use Auto-Generate to fill available periods; review conflict reports and suggestions.",
-            "Add or edit periods as an administrator, then export or print the timetable.",
+            "Click Timetable on the left.",
+            "First check the school hours, the breaks, the school days, and the periods per day. If they are wrong, change them in School Settings.",
+            "Click Auto-Generate and follow the steps on the screen to fill the timetable automatically.",
+            "Read the list of problems (conflicts) and correct them.",
+            "If you need to, you can also add or change a period by hand.",
+            "Click Print or Download to make the timetable.",
+        ],
+        "careful": [
+            "A teacher cannot be in two classes at the same time. Fix every problem before you print.",
         ],
     },
     "School Settings": {
-        "purpose": "Set the school calendar, academic year, period schedule, teacher payment mode, and user accounts.",
+        "purpose": "The control room of the whole system: the school year, the school hours, the teacher pay rules, and the user accounts. Only administrators should change things here.",
         "steps": [
-            "On School Setup, choose the academic year and maintain school and break times, school days, and periods per day.",
-            "Set hourly or monthly teacher payment. Maintain per-class rates or monthly teacher amounts as appropriate.",
-            "On User Management, add or update user accounts and roles. Remove accounts only when authorized.",
+            "Click School Settings on the left.",
+            "On School Setup, choose the Academic Year, then set the school start and end time, the break times, the school days, and the number of periods in a day.",
+            "Choose how teachers are paid (for each period they teach, or a fixed amount each month), and fill in the rates.",
+            "Open User Management to add a new staff account.",
+            "Type the person's full name, a user name, and a password, then choose their job (role) and click Save.",
+        ],
+        "careful": [
+            "Changing the academic year, the school hours, or the user accounts affects everybody. Make these changes only when the school office has agreed them.",
+            "Give each person their own account. Never share a password.",
         ],
     },
 }
 
 ROLE_GUIDANCE = {
-    "super_admin": "System-wide administration. The current navigation exposes all school operations, setup, reports, and finance tabs.",
-    "admin": "School administration. The current navigation exposes school setup, users, academic records, reports, fees, attendance, and timetable tools.",
-    "teacher": "Teaching workflows. The current navigation exposes Mark Entry, Student Attendance, and Teacher Timetable.",
-    "bursar": "Finance and records workflows. The current navigation exposes Dashboard, Students, Class Lists, Fees & Finance, and Teacher Salaries.",
-    "parent": "Read-only school overview through the Dashboard tab in the current navigation.",
+    "super_admin": "The person who looks after the whole system. This account can see every screen.",
+    "admin": "The school office or head teacher. This account sees the school setup, the user accounts, the student and teacher records, the reports, the fees, the attendance, and the timetable.",
+    "teacher": "A teacher. This account sees Mark Entry, Student Attendance, and Teacher Timetable.",
+    "bursar": "The bursar (finance officer). This account sees the Dashboard, Students, Class Lists, Fees & Finance, and Teacher Salaries.",
+    "parent": "A parent or a student. This account sees the Dashboard only, and can only look at it, not change it.",
 }
 
 ROLE_LABELS = {
@@ -200,40 +302,128 @@ ROLE_LABELS = {
 
 WORKFLOWS = [
     (
-        "School administrator: prepare an academic year",
+        "Setting up a new school year (school office)",
         [
-            "Open School Settings and confirm the academic year, school hours, breaks, days, and payment mode.",
-            "Create classes and subjects, then add teachers and assign their classes and subjects.",
-            "Build the timetable and resolve any uncovered periods or assignment conflicts.",
-            "Register students, verify fees and contacts, then maintain attendance and marks during the term.",
-            "Generate individual or bulk report cards and review promotion results at term end.",
+            "Open School Settings and check the academic year, the school hours, the breaks, the school days, and how teachers are paid.",
+            "Open Classes & Subjects and create the classes, then the subjects.",
+            "Open Teachers and add each teacher, choosing the subjects and the classes they teach.",
+            "Open Timetable and click Auto-Generate, then fix any problems until the timetable is complete.",
+            "Open Students and add the students, checking the class, the parent's phone number, and the fees.",
+            "During the term, keep the attendance and the marks up to date. At the end of the term, make the report cards and check Promotion.",
         ],
     ),
     (
-        "Teacher: submit availability and complete teaching records",
+        "A teacher: a normal week",
         [
-            "Sign in with the username registered for the teacher account.",
-            "Open Teacher Timetable and submit availability once; contact an administrator for later corrections.",
-            "Use Mark Entry to enter class, subject, and sequence marks, then save pending changes.",
-            "Use Student Attendance to record the class register for the selected school week.",
+            "Sign in with the user name the school gave you.",
+            "Open Teacher Timetable and send your availability once. Later changes are made by the school office.",
+            "Open Mark Entry to type the marks for your class, subject, and sequence, then click Save Marks.",
+            "Open Student Attendance to mark the class register for the week, then click Save Attendance.",
+            "Tell the school office if anything looks wrong with your classes or your timetable.",
         ],
     ),
     (
-        "Bursar: record a payment",
+        "The bursar: record a fee payment",
         [
-            "Open Fees & Finance and locate the student using search, class, or payment filters.",
-            "Choose the correct fee category (tuition or registration) and enter the verified amount.",
-            "Save the transaction, confirm the student's balance, and export or print the required record.",
+            "Open Fees & Finance and find the student with the Search box or the filter boxes.",
+            "Click the payment button on the student's row.",
+            "Choose the fee type, type the amount the parent paid, and click Save.",
+            "Check the new balance, then print or export the receipt if the school uses one.",
         ],
     ),
     (
-        "Parent: review school overview",
+        "A parent: look at the school overview",
         [
-            "Sign in with the username associated with the parent account.",
-            "Use the Dashboard for the overview currently exposed to the parent role.",
-            "For report-card access or account corrections, contact the school administrator.",
+            "Sign in with the user name the school gave you.",
+            "Open the Dashboard to see the school summary.",
+            "For a report card or a change to your details, speak to the school office.",
         ],
     ),
+]
+
+
+HOW_TO_USE = [
+    ("Numbered steps", "Do the numbered steps in order, one after the other. Each step is one small action."),
+    ("Blue boxes", "A 'Good to know' note that makes the work easier. Always worth reading."),
+    ("Orange boxes", "A 'Be careful' warning. Read it before you continue."),
+    ("Bold words", "The exact name of a button or a box on the screen. Look for the same word on your own screen."),
+    ("The left-hand menu", "The list of names down the left side of the screen. Every guide below begins by telling you which name to click."),
+]
+
+COMPUTER_BASICS = [
+    ("What is a web browser?", "A web browser is the program you use to look at websites. On most computers it is called Chrome, Edge, or Firefox. The school portal opens in the browser, just like any other website."),
+    ("Opening the portal", "Type the school's web address (the school will give it to you) into the long white bar at the top of the browser, then press the Enter key."),
+    ("Clicking", "To click, press the LEFT button of the mouse one time. On a phone or a tablet, tap the screen once with one finger."),
+    ("Typing", "Use the keyboard to type. If you make a mistake, press the Backspace key to rub out the last letter."),
+    ("Scrolling", "Some pages are taller than the screen. Turn the small wheel in the middle of the mouse, or slide your finger up and down on the screen, to see the rest of the page."),
+    ("The left-hand menu", "Down the left side of the screen is a list of the screens you can use. Click a name in that list to open it. On a phone, first tap the small menu button at the top left."),
+    ("Saving your work", "When you click a Save button, your work is sent to the school's central computer and kept safely. If you close the page before saving, your work can be lost."),
+    ("Signing out", "Always click Sign out when you finish, especially on a computer that other people also use."),
+]
+
+
+GLOSSARY = [
+    ("Account", "What you use to sign in. Every member of staff has their own account."),
+    ("User name", "The short name the school gave you for signing in."),
+    ("Password", "The secret word that only you should know."),
+    ("Sign in (log in)", "Typing your user name and password to open your account."),
+    ("Role", "Your job in the system, for example teacher or bursar. The role decides which screens you can see."),
+    ("Menu (navigation)", "The list of screens down the left side of the page."),
+    ("Button", "The coloured shape you click to make something happen."),
+    ("Search box", "The white box where you type a name to find it in a long list."),
+    ("Filter", "A box that shows fewer rows, for example only one class."),
+    ("Row", "One line in a list, for example one line for one student."),
+    ("Save", "To keep what you typed in the school's central computer."),
+    ("Download", "To copy a file from the system onto your own computer. It usually goes to a folder called Downloads."),
+    ("Print", "To send a page to the printer."),
+    ("PDF", "A type of file that always looks the same on every computer. It is the file most often used for printing."),
+    ("Academic year", "The school year, for example 2025/2026."),
+    ("Term", "A part of the school year used for reporting marks."),
+    ("Sequence", "A shorter reporting period inside a term."),
+    ("Matricule (admission number)", "The official number of a student in the school."),
+    ("Coefficient", "How much a subject counts when the student's average is worked out."),
+    ("Average", "A student's overall mark."),
+    ("Report card (bulletin)", "The paper that shows a student's marks and average."),
+    ("Register (attendance)", "The list on which you mark who came to school."),
+    ("Conflict", "A problem in the timetable, for example one teacher placed in two classes at the same time."),
+    ("The server", "The school's central computer, where all the records are kept. You never touch it; the system sends your work to it when you click Save."),
+]
+
+HELP_TOPICS = [
+    ["I cannot sign in", "Check that the CAPS LOCK key is not on, and that you typed the user name exactly as the school gave it. If it still fails, ask the school office to reset your password."],
+    ["A menu name is missing", "Your job (role) decides which menu names you can see. Ask the school office to check your role."],
+    ["A list on the screen is empty", "Clear the Search box, set the class and the other boxes back to 'All', and try again. The class may simply have no students yet."],
+    ["My marks did not save", "Look for the message on the screen. If it shows a problem, click Save Marks again. Check that the computer is still connected to the internet."],
+    ["Nothing happens when I click", "Wait a few seconds, then click once more. Do not click many times. If it is still stuck, press the F5 key to refresh the page."],
+    ["I cannot change a teacher's availability", "Teacher availability can be sent only once. Ask the school office to make the change."],
+    ["A report card is missing marks", "The marks were probably not saved. Open Mark Entry, check the marks, and click Save Marks. Then make the report card again."],
+    ["The timetable shows a problem", "Two lessons clash. Check the teacher, the class, and the time, then change one of them. Use the list of problems on the Timetable page."],
+    ["A payment is not showing", "Wait for the message after saving, then refresh the page. If it is still wrong, tell the administrator before you do anything else."],
+]
+
+
+QUICK_TASKS = [
+    ["Add a new student", "Students", "Click Add Student, fill in the form, then click Add Student to save."],
+    ["Find a student quickly", "Students", "Type the name in the Search box."],
+    ["Type marks for a class", "Mark Entry", "Choose the class, subject and sequence, type the marks out of 20, then click Save Marks."],
+    ["Mark the class register", "Student Attendance", "Choose the class and the date, mark each student, then click Save Attendance."],
+    ["Print one report card", "Report Cards", "Choose the year, class, term and student, then click Print or Download PDF."],
+    ["Print report cards for a whole class", "Bulk Report Cards", "Choose the year, class and term, then click Download PDF."],
+    ["Record a fee payment", "Fees & Finance", "Find the student, click the payment button, choose the fee type and the amount, then click Save."],
+    ["Make a student ID card", "ID Cards", "Choose a class or search for a student, pick a size, then click Download PDF."],
+    ["Build the timetable", "Timetable", "Click Auto-Generate, fix any problems, then click Print or Download."],
+    ["Add a new staff account", "School Settings", "Open User Management, type the name, user name and password, choose the role, then click Save."],
+]
+
+GOOD_PRACTICES = [
+    "Check the academic year and the class before you type marks, attendance, or a payment.",
+    "Use the student's official matricule, and check the spelling of names and phone numbers.",
+    "In Mark Entry, wait for the message that says the marks are saved before you leave the page.",
+    "When you record money, type the exact amount and check the balance afterwards.",
+    "Read a report card or a list before you print it or give it to a parent.",
+    "Keep student information private. Share it only through a channel the school has approved.",
+    "Never share your password. Sign out when you leave a computer that other people use.",
+    "Tell the school office at once if you see information that is wrong or missing.",
 ]
 
 
@@ -429,10 +619,25 @@ def add_table(document: Document, headers: list[str], rows: list[list[str]], wid
     return table
 
 
-def add_bullet(document: Document, text: str, numbered: bool = False) -> None:
-    paragraph = document.add_paragraph(style="List Number" if numbered else "List Bullet")
+def add_bullet(document: Document, text: str) -> None:
+    paragraph = document.add_paragraph(style="List Bullet")
     paragraph.paragraph_format.space_after = Pt(3)
     paragraph.add_run(text)
+
+
+def add_numbered(document: Document, items) -> None:
+    """Write a numbered list that always starts again at 1.
+
+    Word's built-in numbered style keeps counting all the way through the
+    document, which is confusing in a guide for beginners, so the numbers are
+    written here instead.
+    """
+    for index, text in enumerate(items, start=1):
+        paragraph = document.add_paragraph()
+        paragraph.paragraph_format.left_indent = Inches(0.42)
+        paragraph.paragraph_format.first_line_indent = Inches(-0.26)
+        paragraph.paragraph_format.space_after = Pt(3)
+        paragraph.add_run(f"{index}.  {text}")
 
 
 def add_callout(document: Document, title: str, text: str, fill: str = PALE_BLUE) -> None:
@@ -495,9 +700,16 @@ def add_cover(document: Document) -> None:
     summary.paragraph_format.right_indent = Inches(0.6)
     summary.paragraph_format.space_before = Pt(55)
     summary.add_run(
-        "A practical guide for administrators, teachers, bursars, and parents "
-        "using the BCHS DOUALA school portal."
+        "A simple, step-by-step guide for the people who use the BCHS DOUALA "
+        "school portal every day: the school office, teachers, the bursar, and parents."
     )
+    note = document.add_paragraph()
+    note.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    note.paragraph_format.space_before = Pt(12)
+    note_run = note.add_run("No computer experience needed. Every step tells you exactly what to click.")
+    note_run.font.size = Pt(10)
+    note_run.italic = True
+    note_run.font.color.rgb = RGBColor.from_string(MUTED)
     document.add_page_break()
 
 
@@ -513,105 +725,202 @@ def build_manual() -> Path:
     style_document(document)
     add_cover(document)
 
-    document.add_heading("1. About the Portal", level=1)
+    document.add_heading("What is in this manual", level=1)
     document.add_paragraph(
-        "BCHS DOUALA is a school operations portal for maintaining student and teacher records, "
-        "classes and subjects, marks, attendance, timetables, report cards, fees, and staff pay. "
-        "The menu shown to each user is based on the role stored on that user's account."
+        "This manual is written for the people who use the BCHS DOUALA school portal, even if they "
+        "have never used a computer before. You do not need to know anything about how the system "
+        "works. Follow the steps one at a time."
     )
-    counts_text = ", ".join(f"{count} {name}" for name, count in source_counts.items())
-    document.add_paragraph(f"This manual is generated from the current source tree ({counts_text}).")
+    contents_rows = [
+        ["Part 1 - Getting started", "How to open the portal, sign in, and find your way around the screen."],
+        ["Part 2 - What each screen is for", "A simple guide to every name in the left-hand menu, with the steps to follow."],
+        ["Part 3 - Everyday jobs", "Step-by-step tasks for the school office, teachers, the bursar, and parents."],
+        ["Part 4 - Help", "Words you will see, what to do when something goes wrong, and a quick reference page."],
+        ["Part 5 - For the school's computer person", "Technical notes for whoever looks after the system. Everyday users can ignore this part."],
+    ]
+    add_table(document, ["Part", "What it covers"], contents_rows, [2.1, 4.7])
+
+    document.add_page_break()
+    document.add_heading("Part 1. Getting Started", level=1)
+    document.add_heading("Who this manual is for", level=2)
+    document.add_paragraph(
+        "This manual explains how to use the BCHS DOUALA school portal. It is written for everyone "
+        "who works with student records, marks, attendance, report cards, fees, or staff pay: the "
+        "school office, teachers, the bursar, and parents."
+    )
+    document.add_paragraph(
+        "The manual uses plain words on purpose. Where a technical word cannot be avoided, it is "
+        "explained the first time it appears, and you will also find it in the list of "
+        "'Words you will see' in Part 4."
+    )
     add_callout(
         document,
-        "Account access",
-        "Sign in with the username issued by the school. The account's saved role controls which navigation tabs appear. "
-        "The role tiles on the login screen are not a substitute for an account role or permission.",
+        "You cannot break anything by looking.",
+        "Clicking a menu name only opens a screen. Nothing is changed until you click a Save button. "
+        "If you are not sure, look first and save later.",
     )
 
-    document.add_heading("2. User Roles", level=1)
+    document.add_heading("How to read this manual", level=2)
+    add_table(document, ["What you will see", "What it means"], [list(entry) for entry in HOW_TO_USE], [1.7, 5.1])
+
+    document.add_heading("A few computer ideas, explained simply", level=2)
     document.add_paragraph(
-        "This table reflects the tabs displayed by the current frontend navigation. "
-        "A hidden tab is not a substitute for server-side authorization; protect accounts and credentials accordingly."
+        "If you have never used a computer, read this short section once. After that, you can go "
+        "straight to the guide for the screen you need."
     )
-    role_rows = []
-    for role, description in ROLE_GUIDANCE.items():
-        visible = [item["label"] for item in nav if role in item["roles"]]
-        role_rows.append([ROLE_LABELS.get(role, role.replace("_", " ").title()), description, "; ".join(visible) or "No navigation tabs found"])
-    add_table(document, ["Account role", "Primary use", "Tabs shown"], role_rows, [1.0, 2.25, 3.55])
+    add_table(document, ["Question", "Plain answer"], [list(entry) for entry in COMPUTER_BASICS], [1.7, 5.1])
 
-    document.add_heading("3. Sign In and Navigation", level=1)
-    for step in (
-        "Open the school portal URL supplied by the school.",
-        "Enter the registered username and select Sign in.",
-        "Use the left navigation to open a tab. On a phone, tap the menu button to open navigation and tap a tab to close it.",
-        "Use Sign out when finished on a shared device.",
-    ):
-        add_bullet(document, step, numbered=True)
+    document.add_heading("Signing in", level=2)
+    sign_in_steps = [
+        "Open the web browser on your computer (for example Chrome, Edge, or Firefox).",
+        "Type the school's web address into the long white bar at the top, then press the Enter key.",
+        "The sign-in page appears. Type your user name in the first box.",
+        "Type your password in the second box. The dots hide it as you type.",
+        "Click the Sign in button.",
+        "The Dashboard opens. You are now signed in.",
+    ]
+    add_numbered(document, sign_in_steps)
+    document.add_paragraph(
+        "Do not share your password with anyone. When you have finished, click Sign out. This is "
+        "especially important on a computer that other people also use."
+    )
     add_callout(
         document,
-        "Teacher access note",
-        "Teachers use Mark Entry, Student Attendance, and Teacher Timetable from the application routes. "
-        "If sign-in returns to the public home page, ask the administrator to confirm the teacher account and use the app menu or school-provided link.",
+        "If the password does not work:",
+        "check that the CAPS LOCK key is not switched on. The password is case sensitive, so a "
+        "capital letter and a small letter are not the same. If it still fails, ask the school "
+        "office to reset your password.",
         fill="FFF5E8",
     )
 
-    document.add_heading("4. Tab-by-Tab Guide", level=1)
-    for item in nav:
-        label = str(item["label"])
-        route = str(item["route"])
-        roles = ", ".join(str(role).replace("_", " ").title() for role in item["roles"])
-        component = routes.get(route, "Route registered in App.tsx")
-        guide = TAB_GUIDE.get(label, {
-            "purpose": "Open this workspace to review or maintain its school records.",
-            "steps": ["Review the current list and filters.", "Make the required changes, then save or export using the page actions."],
-        })
-        document.add_heading(label, level=2)
-        p = document.add_paragraph()
-        p.paragraph_format.space_after = Pt(3)
-        lead = p.add_run("Purpose: ")
-        lead.bold = True
-        p.add_run(str(guide["purpose"]))
-        meta = document.add_paragraph()
-        meta.paragraph_format.space_after = Pt(3)
-        r = meta.add_run(f"Route: {route}   |   Visible to: {roles}   |   Screen: {component}")
-        r.font.size = Pt(8)
-        r.font.color.rgb = RGBColor.from_string(MUTED)
-        for step in guide["steps"]:
-            add_bullet(document, str(step))
-
-    document.add_page_break()
-    document.add_heading("5. Recommended Workflows", level=1)
-    for title, steps in WORKFLOWS:
-        document.add_heading(title, level=2)
-        for step in steps:
-            add_bullet(document, step, numbered=True)
-
-    document.add_heading("6. Good Record-Keeping Practices", level=1)
+    document.add_heading("Finding your way around the screen", level=2)
     for item in (
-        "Confirm the academic year and class before entering marks, attendance, or payments.",
-        "Use the student's official matricule/admission number and verify spelling and guardian contacts.",
-        "Record marks against the correct subject and sequence; review unsaved-draft indicators before leaving Mark Entry.",
-        "Record payment category and amount accurately, then verify the balance shown after saving.",
-        "Review report cards and exports before distributing them. Use a private school-approved channel for student records.",
-        "Do not share account passwords. Sign out on shared devices and report incorrect access or missing data to the administrator.",
+        "The left-hand menu is a list of the screens you can open. Click a name in the list to open that screen. On a phone or tablet, tap the small menu button at the top left first.",
+        "The bar across the top shows the name of the screen you are on, and a bell shape for notifications.",
+        "Every action has a button with a clear name, such as 'Add Student', 'Save Marks', or 'Download PDF'. Look for the same words on your screen.",
+        "While the system is working it may show a short message, such as 'Saving...'. Wait for it to finish before you click again.",
     ):
         add_bullet(document, item)
 
-    document.add_heading("7. Troubleshooting", level=1)
-    troubleshooting = [
-        ["A tab is missing", "The current menu is role-based. Ask the administrator to confirm the account role and assignments."],
-        ["A list is empty", "Clear search/filter values and confirm the class, academic year, and account assignments."],
-        ["A mark is not visible", "Confirm class, subject, and sequence; in Mark Entry, check whether the draft is saved to the server."],
-        ["A payment or attendance change is not shown", "Check the success/error message and reload the page after confirming the server connection."],
-        ["Timetable has gaps or conflicts", "Review class, subject, teacher, availability, and school-hours settings; use the conflict suggestions in Timetable."],
-        ["A teacher cannot change submitted availability", "Teacher availability is a one-time submission. An administrator manages timetable corrections."],
-    ]
-    add_table(document, ["Issue", "What to check"], troubleshooting, [2.0, 4.8])
-
-    document.add_heading("Appendix A. Navigation and Source Map", level=1)
+    document.add_heading("What you can see depends on your job", level=2)
     document.add_paragraph(
-        "The following matrix is parsed from the application's navigation source each time this generator runs. "
-        "It is included so administrators can match visible tabs to the current screens."
+        "Each person signs in with their own account. Every account has a job, called a 'role', and "
+        "the role decides which names appear in the left-hand menu. This means each person sees only "
+        "the screens their work needs. If a screen you need is missing, ask the school office to "
+        "check your role."
+    )
+    role_rows = []
+    for role, description in ROLE_GUIDANCE.items():
+        visible = [str(item["label"]) for item in nav if role in item["roles"]]
+        role_rows.append([
+            ROLE_LABELS.get(role, role.replace("_", " ").title()),
+            description,
+            ", ".join(visible) if visible else "No screens found",
+        ])
+    add_table(document, ["Job (role)", "Who this is", "Screens this job can see"], role_rows, [1.1, 3.0, 2.7])
+
+    document.add_page_break()
+    document.add_heading("Part 2. What Each Screen Is For", level=1)
+    document.add_paragraph(
+        "This part explains every name in the left-hand menu, in the order the menu shows them. "
+        "For each screen you will find what it is for, the exact steps to follow, and the things "
+        "to watch out for."
+    )
+    document.add_paragraph(
+        "You do not have to remember all of this. Find the name of the screen you need in the list "
+        "below and read only that part."
+    )
+
+    for item in nav:
+        label = str(item["label"])
+        roles = ", ".join(
+            ROLE_LABELS.get(str(role), str(role).replace("_", " ").title()) for role in item["roles"]
+        )
+        guide = TAB_GUIDE.get(label, {
+            "purpose": "This screen shows the school records for this part of the work.",
+            "steps": [
+                "Click the name of this screen in the left-hand menu.",
+                "Look at the list, and use the Search box to find the record you need.",
+                "Make the change you need, then click Save.",
+            ],
+        })
+        document.add_heading(label, level=2)
+
+        purpose = document.add_paragraph()
+        purpose.paragraph_format.space_after = Pt(3)
+        lead = purpose.add_run("What it is for: ")
+        lead.bold = True
+        purpose.add_run(str(guide["purpose"]))
+
+        meta = document.add_paragraph()
+        meta.paragraph_format.space_after = Pt(5)
+        r = meta.add_run(f"Name in the menu: {label}   |   Who can see it: {roles}")
+        r.font.size = Pt(8)
+        r.font.color.rgb = RGBColor.from_string(MUTED)
+
+        steps_lead = document.add_paragraph()
+        steps_lead.paragraph_format.space_after = Pt(2)
+        steps_lead.add_run("Step by step:").bold = True
+        add_numbered(document, [str(step) for step in guide["steps"]])
+
+        careful = guide.get("careful") or []
+        if careful:
+            add_callout(
+                document,
+                "Be careful:",
+                "\n".join(f"- {note}" for note in careful),
+                fill="FFF5E8",
+            )
+
+    document.add_page_break()
+    document.add_heading("Part 3. Everyday Jobs", level=1)
+    document.add_paragraph(
+        "These tasks come up again and again. Each one is a short list of steps that you can follow "
+        "from beginning to end."
+    )
+    for title, steps in WORKFLOWS:
+        document.add_heading(title, level=2)
+        add_numbered(document, list(steps))
+
+    document.add_page_break()
+    document.add_heading("Part 4. Help", level=1)
+
+    document.add_heading("Quick reference: where do I go to...?", level=2)
+    document.add_paragraph("If you remember only one page of this manual, remember this one.")
+    add_table(document, ["What you want to do", "Screen", "First step"], QUICK_TASKS, [2.1, 1.4, 3.3])
+
+    document.add_heading("Words you will see", level=2)
+    document.add_paragraph(
+        "These are the words the portal uses. Each one is explained here in everyday language."
+    )
+    add_table(document, ["Word", "What it means"], [list(entry) for entry in GLOSSARY], [1.7, 5.1])
+
+    document.add_heading("If something goes wrong", level=2)
+    document.add_paragraph(
+        "Most problems have a simple answer. Look for your problem in the table below. If you "
+        "cannot solve it, tell the school office, and write down exactly what you were doing and "
+        "what message appeared on the screen."
+    )
+    add_table(document, ["What happened", "What to do"], HELP_TOPICS, [2.0, 4.8])
+
+    document.add_heading("Good habits for accurate records", level=2)
+    for item in GOOD_PRACTICES:
+        add_bullet(document, item)
+
+    document.add_page_break()
+    document.add_heading("Part 5. For the School's Computer Person", level=1)
+    add_callout(
+        document,
+        "Everyday users can stop here.",
+        "This part is technical. It is for the person who installs, updates, or repairs the school "
+        "portal. It does not describe any task that the school staff need to do.",
+        fill="FFF5E8",
+    )
+
+    document.add_heading("Appendix A. Menu names and who can see them", level=2)
+    document.add_paragraph(
+        "This list is read automatically from the application every time this manual is built, so it "
+        "always matches the software."
     )
     map_rows = []
     for item in nav:
@@ -620,32 +929,42 @@ def build_manual() -> Path:
         map_rows.append([
             label,
             route,
-            ", ".join(str(role).replace("_", " ").title() for role in item["roles"]),
-            routes.get(route, "-"),
+            ", ".join(ROLE_LABELS.get(str(role), str(role).replace("_", " ").title()) for role in item["roles"]),
+            routes.get(route, "Not found in App.tsx"),
         ])
-    add_table(document, ["Tab", "Route", "Visible roles", "Screen component"], map_rows, [1.35, 1.5, 1.7, 2.25])
+    add_table(document, ["Menu name", "Web address in the app", "Who can see it", "Program file"], map_rows, [1.3, 1.5, 1.75, 2.25])
 
-    document.add_heading("Appendix B. Backend API Inventory", level=1)
+    document.add_heading("Appendix B. Service inventory", level=2)
     document.add_paragraph(
-        "This summary is generated by scanning active Express route declarations. "
-        "The full request/response contract is maintained in the route source and is not reproduced here."
+        "A summary of the parts of the system, counted directly from the source files."
     )
+    counts_text = ", ".join(f"{count} {name}" for name, count in source_counts.items())
+    document.add_paragraph(f"Source files currently in the project: {counts_text}.")
     api_rows = []
     for module, counts in api_inventory:
         totals = ", ".join(f"{method}: {counts[method]}" for method in ("GET", "POST", "PUT", "PATCH", "DELETE") if counts[method])
         api_rows.append([module, totals])
     add_table(document, ["Backend route module", "Declared endpoint counts"], api_rows, [2.2, 4.6])
 
-    document.add_heading("Appendix C. Keeping This Manual Current", level=1)
+    document.add_heading("Appendix C. Rebuilding this manual", level=2)
     document.add_paragraph(
-        "Run this generator after changing application navigation or route definitions. "
-        "It reads frontend/src/pages/AppLayout.tsx, frontend/src/App.tsx, and backend/routes/*.js, "
-        "then regenerates User_Manual.docx beside the script. Task instructions are maintained in "
-        "TAB_GUIDE and WORKFLOWS near the top of generate_user_manual.py so user-facing behavior can be reviewed and edited explicitly."
+        "This manual is built by a script called generate_user_manual.py, which sits in the same "
+        "folder as the application. The script reads the menu from frontend/src/pages/AppLayout.tsx, "
+        "the screen list from frontend/src/App.tsx, and the service list from backend/routes/*.js, "
+        "then writes User_Manual.docx next to itself."
+    )
+    document.add_paragraph(
+        "To rebuild it, open a command window in that folder and run: python generate_user_manual.py"
+    )
+    document.add_paragraph(
+        "The words that the reader sees are kept in the TAB_GUIDE, ROLE_GUIDANCE, WORKFLOWS, "
+        "COMPUTER_BASICS, GLOSSARY, HELP_TOPICS, QUICK_TASKS and GOOD_PRACTICES sections near the "
+        "top of the script. Edit those sections to change the wording for your school, then run the "
+        "script again."
     )
 
     document.core_properties.title = "BCHS DOUALA School Management System User Manual"
-    document.core_properties.subject = "User guide generated from the BCHS DOUALA application source"
+    document.core_properties.subject = "A plain-language guide to the BCHS DOUALA school portal"
     document.core_properties.author = "BCHS DOUALA"
     document.core_properties.keywords = "school management, user manual, students, teachers, attendance, reports, fees"
     try:
