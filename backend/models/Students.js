@@ -143,6 +143,9 @@ studentschema.virtual("admissionNumber")
 studentschema.index({ matricule: 1 });
 studentschema.index({ enrollmentYear: 1 });
 studentschema.index({ section: 1 });
+// Sorted + paginated listings of the Students screen (section/class scoped)
+studentschema.index({ section: 1, fullName: 1 });
+studentschema.index({ section: 1, classId: 1, fullName: 1 });
 
 // Generate the matricule automatically for every new student, and refuse a
 // matricule that is already used by another student.

@@ -1,0 +1,2 @@
+HEAD (original) : {"error :: prettier/prettier":97,"error :: @typescript-eslint/no-explicit-any":10,"warning :: react-hooks/exhaustive-deps":2,"error :: no-useless-escape":1}
+WORKING (edited): {"error :: prettier/prettier":1306,"error :: @typescript-eslint/no-explicit-any":12,"error :: no-useless-escape":1,"warning :: react-hooks/exhaustive-deps":1}

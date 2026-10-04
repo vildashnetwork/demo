@@ -25,6 +25,75 @@ const getPublicBaseUrl = (req) => {
     return `${protocol}://${host}`;
 };
 
+// ---------- Students list: filtering + pagination --------------------------
+const DEFAULT_STUDENTS_PAGE_SIZE = 50;
+const MAX_STUDENTS_PAGE_SIZE = 500;
+
+const withAdmissionNumber = (student) => ({
+    ...student,
+    admissionNumber: student.matricule || ""
+});
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Express can hand arrays back for repeated query params (?limit=10&limit=20).
+const queryValue = (value) => (Array.isArray(value) ? value[0] : value);
+
+const parsePositiveInt = (value, fallback, max = Number.MAX_SAFE_INTEGER) => {
+    const parsed = Number.parseInt(queryValue(value), 10);
+    if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+    return Math.min(parsed, max);
+};
+
+// A student is "partial" while his balance is still below the class total
+// (tuition + registration) recorded on his own document.
+const CLASS_TOTAL_FEE_EXPR = {
+    $add: [
+        { $ifNull: ["$tuitionFee", 0] },
+        { $cond: [{ $eq: ["$registrationFeeRequired", true] }, { $ifNull: ["$registrationFeeAmount", 0] }, 0] }
+    ]
+};
+
+/**
+ * Translate the Students screen filters into a MongoDB filter:
+ * section (always) + optional class, free-text search and fee status.
+ * @param {object} req the express request
+ * @returns {object} a MongoDB query
+ */
+const buildStudentFilter = (req) => {
+    const filter = { ...sectionFilter(req) };
+
+    const classId = String(queryValue(req.query.classId) || "").trim();
+    if (classId && classId !== "all") filter.classId = classId;
+
+    const search = String(queryValue(req.query.search ?? req.query.q) || "").trim();
+    if (search) {
+        const regex = new RegExp(escapeRegex(search), "i");
+        filter.$or = [
+            { fullName: regex },
+            { matricule: regex },
+            { parentName: regex },
+            { parentPhone: regex }
+        ];
+    }
+
+    const feeStatus = String(queryValue(req.query.feeStatus) || "").trim().toLowerCase();
+    if (feeStatus === "paid") {
+        filter.feesDue = 0;
+    } else if (feeStatus === "owing") {
+        filter.feesDue = { $gt: 0 };
+    } else if (feeStatus === "partial") {
+        filter.feesDue = { $gt: 0 };
+        filter.$expr = { $lt: ["$feesDue", CLASS_TOTAL_FEE_EXPR] };
+    }
+
+    return filter;
+};
+
+// Pagination is opt-in so the legacy callers (ID cards, sync scripts) that
+// expect the complete list keep working untouched.
+const wantsPagination = (req) => req.query.page !== undefined || req.query.limit !== undefined;
+
 /**
  * Clean the matricule coming from an update payload:
  * - an empty value is dropped (the student keeps the number he already has)
@@ -56,18 +125,49 @@ const sanitizeMatriculePayload = async (studentData = {}, ignoreId = null) => {
 // ==================== GET ROUTES ====================
 
 // GET all students
+// - no ?page / ?limit -> the complete result set (legacy callers)
+// - with ?page&limit   -> one page + the total count (Students screen)
+// Optional filters on both modes: classId, search (name/matricule/parent) and
+// feeStatus (paid | owing | partial).
 router.get("/students", async (req, res) => {
     try {
-        const filter = sectionFilter(req);
-        const records = await Student.find(filter).sort({ fullName: 1 }).lean();
-        const students = records.map((student) => ({
-            ...student,
-            admissionNumber: student.matricule || ""
-        }));
-        res.status(200).json({
+        const filter = buildStudentFilter(req);
+
+        if (!wantsPagination(req)) {
+            const records = await Student.find(filter).sort({ fullName: 1, _id: 1 }).lean();
+            const students = records.map(withAdmissionNumber);
+            return res.status(200).json({
+                success: true,
+                count: students.length,
+                total: students.length,
+                page: 1,
+                limit: students.length,
+                pages: 1,
+                data: students
+            });
+        }
+
+        const limit = parsePositiveInt(req.query.limit, DEFAULT_STUDENTS_PAGE_SIZE, MAX_STUDENTS_PAGE_SIZE);
+        const requestedPage = parsePositiveInt(req.query.page, 1);
+
+        const total = await Student.countDocuments(filter);
+        const pages = Math.max(1, Math.ceil(total / limit));
+        const page = Math.min(requestedPage, pages);
+
+        const records = await Student.find(filter)
+            .sort({ fullName: 1, _id: 1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
+
+        return res.status(200).json({
             success: true,
-            count: students.length,
-            data: students
+            count: records.length,
+            total,
+            page,
+            limit,
+            pages,
+            data: records.map(withAdmissionNumber)
         });
     } catch (error) {
         res.status(500).json({

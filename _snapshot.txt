@@ -1,0 +1,1311 @@
+1: import { useCallback, useEffect, useRef, useState } from "react";
+2: import { Search, Plus, Trash2, Pencil, Filter, Download, FileText, Printer, Camera, ImagePlus, Upload, X, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+3: import { CompactPageLoader } from "@/components/CompactPageLoader";
+4: import { getStoredSchoolSection } from "@/lib/schoolSystem";
+5: import { toast } from "sonner";
+6: import axios from "axios";
+7: import jsPDF from "jspdf";
+8: import "jspdf-autotable";
+9: 
+10: const API_BASE = import.meta.env.VITE_API_URL;
+11: 
+12: // Types
+13: interface Student {
+14:   id: string;
+15:   fullName: string;
+16:   gender: string;
+17:   section: "englophone";
+18:   dob: string;
+19:   classId: string;
+20:   department: string;
+21:   parentName: string;
+22:   parentPhone: string;
+23:   address: string;
+24:   photoUrl?: string;
+25:   photoCloudinaryUrl?: string;
+26:   photoLocalUrl?: string;
+27:   registrationDate: string;
+28:   feesPaid: number;
+29:   feesDue: number;
+30:   tuitionFee?: number;
+31:   tuitionInstallments?: number;
+32:   tuitionFeePaid?: number;
+33:   tuitionInstallmentsPaid?: number;
+34:   registrationFeeRequired?: boolean;
+35:   registrationFeeAmount?: number;
+36:   registrationFeePaid?: number;
+37: }
+38: 
+39: interface Class {
+40:   id: string;
+41:   className: string;
+42:   department: string;
+43:   cycle: string;
+44:   schoolSection: "englophone";
+45:   acedemicYear: string;
+46:   classMasterId: string;
+47:   tuitionFee: number;
+48:   tuitionInstallments: number;
+49:   registrationFeeRequired: boolean;
+50:   registrationFeeAmount: number;
+51: }
+52: 
+53: function getClassTotalFee(schoolClass?: Class): number {
+54:   if (!schoolClass) return 0;
+55:   return Number(schoolClass.tuitionFee || 0)
+56:     + (schoolClass.registrationFeeRequired ? Number(schoolClass.registrationFeeAmount || 0) : 0);
+57: }
+58: 
+59: // Helper to check if ID is a MongoDB ObjectId
+60: const isMongoDBId = (id: string): boolean => {
+61:   return /^[0-9a-fA-F]{24}$/.test(id);
+62: };
+63: 
+64: // Normalize a student row coming from the API (_id -> id, default section).
+65: const mapStudents = (rows: any[] = []): Student[] => rows.map((student: any) => ({
+66:   ...student,
+67:   id: student._id || student.id,
+68:   section: student.section || "englophone",
+69: }));
+70: 
+71: // The student list is paginated on the server: the browser only ever holds and
+72: // renders one page of rows (50 by default), which keeps this screen fast even
+73: // with 5,000+ students.
+74: const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
+75: const DEFAULT_PAGE_SIZE = 50;
+76: const SEARCH_DEBOUNCE_MS = 300;
+77: 
+78: export function StudentsPage() {
+79:   const [students, setStudents] = useState<Student[]>([]);
+80:   const [classes, setClasses] = useState<Class[]>([]);
+81:   const [loading, setLoading] = useState(true);
+82:   const [q, setQ] = useState("");
+83:   const [classFilter, setClassFilter] = useState<string>("all");
+84:   const [feeStatusFilter, setFeeStatusFilter] = useState<string>("all");
+85:   const [editing, setEditing] = useState<Student | null>(null);
+86:   const [showNew, setShowNew] = useState(false);
+87:   // Server-driven list state (pagination + loading)
+88:   const [listLoading, setListLoading] = useState(false);
+89:   const [searchInput, setSearchInput] = useState("");
+90:   const [page, setPage] = useState(1);
+91:   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+92:   const [total, setTotal] = useState(0);
+93:   const [reloadToken, setReloadToken] = useState(0);
+94:   const [classesLoaded, setClassesLoaded] = useState(false);
+95:   const [exporting, setExporting] = useState(false);
+96:   const listRequestRef = useRef(0);
+97: 
+98:   const role: string = "admin";
+99:   const canEdit = role === "super_admin" || role === "admin";
+100: 
+101:   // ---------------------------------------------------------------------
+102:   // Server-side filtering + pagination: the API filters, counts and slices,
+103:   // so the browser never has to store or render the whole school at once.
+104:   // ---------------------------------------------------------------------
+105:   const buildFilterParams = useCallback(() => ({
+106:     section: getStoredSchoolSection(),
+107:     classId: classFilter !== "all" ? classFilter : undefined,
+108:     search: q || undefined,
+109:     feeStatus: feeStatusFilter !== "all" ? feeStatusFilter : undefined,
+110:   }), [classFilter, q, feeStatusFilter]);
+111: 
+112:   const fetchClasses = useCallback(async () => {
+113:     const classesRes = await axios.get(`${API_BASE}/classes`, { params: { section: getStoredSchoolSection() } });
+114:     if (!classesRes.data.success) return [];
+115: 
+116:     const mappedClasses = classesRes.data.data.map((cls: any) => ({
+117:       ...cls,
+118:       id: cls._id || cls.id,
+119:       schoolSection: cls.schoolSection || cls.section || "englophone",
+120:       tuitionFee: Number(cls.tuitionFee) || 0,
+121:       tuitionInstallments: Number(cls.tuitionInstallments) || 1,
+122:       registrationFeeRequired: Boolean(cls.registrationFeeRequired),
+123:       registrationFeeAmount: Number(cls.registrationFeeAmount) || 0,
+124:     }));
+125:     setClasses(mappedClasses);
+126:     return mappedClasses;
+127:   }, []);
+128: 
+129:   // One page of students (the previous page stays visible while it loads).
+130:   const loadStudents = useCallback(async (targetPage: number) => {
+131:     const requestId = ++listRequestRef.current;
+132:     setListLoading(true);
+133:     try {
+134:       const res = await axios.get(`${API_BASE}/students`, {
+135:         params: { ...buildFilterParams(), page: targetPage, limit: pageSize },
+136:       });
+137:       if (requestId !== listRequestRef.current) return; // a newer request won
+138:       if (!res.data.success) return;
+139: 
+140:       const mappedStudents = mapStudents(res.data.data);
+141:       const totalCount = Number(res.data.total ?? mappedStudents.length);
+142:       const lastPage = Math.max(1, Number(res.data.pages ?? Math.ceil(totalCount / pageSize)));
+143: 
+144:       setTotal(totalCount);
+145:       if (targetPage > lastPage) {
+146:         // The requested page disappeared (deletion or filter change).
+147:         setPage(lastPage);
+148:         return;
+149:       }
+150:       setStudents(mappedStudents);
+151:     } catch (error: any) {
+152:       if (requestId !== listRequestRef.current) return;
+153:       toast.error(error.response?.data?.message || "Failed to fetch students");
+154:       console.error("Error fetching students:", error);
+155:     } finally {
+156:       if (requestId === listRequestRef.current) {
+157:         setListLoading(false);
+158:         setLoading(false);
+159:       }
+160:     }
+161:   }, [buildFilterParams, pageSize]);
+162: 
+163:   // Exports and printing need every matching student, not just the visible page.
+164:   const fetchAllMatching = useCallback(async () => {
+165:     const res = await axios.get(`${API_BASE}/students`, { params: buildFilterParams() });
+166:     return mapStudents(res.data?.data);
+167:   }, [buildFilterParams]);
+168: 
+169:   // First paint: load the classes, then let the list effect below fetch the
+170:   // first page. The historical "open on the first class" behaviour is kept.
+171:   useEffect(() => {
+172:     let cancelled = false;
+173:     (async () => {
+174:       try {
+175:         const mappedClasses = await fetchClasses();
+176:         if (cancelled) return;
+177:         if (mappedClasses.length) {
+178:           setClassFilter((current) => (current === "all" ? mappedClasses[0].id : current));
+179:         }
+180:       } catch (error: any) {
+181:         if (cancelled) return;
+182:         toast.error(error.response?.data?.message || "Failed to fetch data");
+183:         console.error("Error fetching data:", error);
+184:         setLoading(false);
+185:       } finally {
+186:         if (!cancelled) setClassesLoaded(true);
+187:       }
+188:     })();
+189:     return () => { cancelled = true; };
+190:   }, [fetchClasses]);
+191: 
+192:   // Reload the visible page whenever the filters, the page or an edit change.
+193:   useEffect(() => {
+194:     if (!classesLoaded) return;
+195:     void loadStudents(page);
+196:   }, [classesLoaded, page, reloadToken, loadStudents]);
+197: 
+198:   // Re-read the list (and the class rosters) after create / update / delete.
+199:   const refreshList = useCallback(async () => {
+200:     try {
+201:       await fetchClasses();
+202:     } catch (error) {
+203:       console.error("Error refreshing classes:", error);
+204:     }
+205:     setReloadToken((token) => token + 1);
+206:   }, [fetchClasses]);
+207: 
+208:   // Typing in the search box triggers a single request once the user pauses.
+209:   useEffect(() => {
+210:     const timer = setTimeout(() => {
+211:       const next = searchInput.trim();
+212:       if (next === q) return;
+213:       setQ(next);
+214:       setPage(1);
+215:     }, SEARCH_DEBOUNCE_MS);
+216:     return () => clearTimeout(timer);
+217:   }, [searchInput, q]);
+218: 
+219:   const changeClassFilter = (value: string) => {
+220:     setClassFilter(value);
+221:     setPage(1);
+222:   };
+223: 
+224:   const changeFeeStatusFilter = (value: string) => {
+225:     setFeeStatusFilter(value);
+226:     setPage(1);
+227:   };
+228: 
+229:   const changePageSize = (value: number) => {
+230:     setPageSize(value);
+231:     setPage(1);
+232:   };
+233: 
+234:   // The API already applied the filters, so the loaded rows are the rows shown.
+235:   const filtered = students;
+236:   const pageCount = Math.max(1, Math.ceil((total || 0) / pageSize));
+237:   const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+238:   const rangeEnd = Math.min(page * pageSize, total);
+239: 
+240:   // CREATE - Add new student
+241:   const createStudent = async (student: Student) => {
+242:     try {
+243:       if (!student.fullName.trim()) {
+244:         toast.error("Full name is required");
+245:         return;
+246:       }
+247:       if (!student.parentPhone.trim()) {
+248:         toast.error("Parent phone is required");
+249:         return;
+250:       }
+251:       if (!student.classId) {
+252:         toast.error("Class is required");
+253:         return;
+254:       }
+255: 
+256:       const classObj = classes.find(c => c.id === student.classId);
+257:       const totalFee = getClassTotalFee(classObj);
+258:       if (!classObj || (classObj.className !== "Graduated" && classObj.tuitionFee <= 0)) {
+259:         toast.error("Configure this class's tuition in Classes & Subjects before enrolling students");
+260:         return;
+261:       }
+262:       const tuitionPaid = Number(student.tuitionFeePaid) || 0;
+263:       const registrationPaid = Number(student.registrationFeePaid) || 0;
+264:       const feesPaid = tuitionPaid + registrationPaid;
+265:       const feesDue = Math.max(0, totalFee - feesPaid);
+266: 
+267:       const studentData = {
+268:         fullName: student.fullName.trim(),
+269:         gender: student.gender,
+270:         section: student.section || "englophone",
+271:         dob: student.dob,
+272:         classId: student.classId,
+273:         department: student.department,
+274:         parentName: student.parentName.trim(),
+275:         parentPhone: student.parentPhone.trim(),
+276:         address: student.address.trim(),
+277:         photoUrl: student.photoUrl || "",
+278:         registrationDate: student.registrationDate || new Date().toISOString().slice(0, 10),
+279:         feesPaid,
+280:         feesDue,
+281:         tuitionFee: classObj.tuitionFee,
+282:         tuitionInstallments: classObj.tuitionInstallments,
+283:         tuitionFeePaid: tuitionPaid,
+284:         tuitionInstallmentsPaid: Number(student.tuitionInstallmentsPaid) || 0,
+285:         registrationFeeRequired: classObj.registrationFeeRequired,
+286:         registrationFeeAmount: classObj.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
+287:         registrationFeePaid: registrationPaid,
+288:       };
+289: 
+290:       console.log("➕ Creating new student");
+291:       const response = await axios.post(`${API_BASE}/students`, studentData);
+292:       if (response.data.success) {
+293:         toast.success("Student added successfully");
+294:         await refreshList();
+295:         setShowNew(false);
+296:       }
+297:     } catch (error: any) {
+298:       console.error("Error creating student:", error);
+299:       handleApiError(error);
+300:     }
+301:   };
+302: 
+303:   // UPDATE - Update existing student
+304:   const updateStudent = async (student: Student) => {
+305:     try {
+306:       if (!student.fullName.trim()) {
+307:         toast.error("Full name is required");
+308:         return;
+309:       }
+310:       if (!student.parentPhone.trim()) {
+311:         toast.error("Parent phone is required");
+312:         return;
+313:       }
+314:       if (!student.classId) {
+315:         toast.error("Class is required");
+316:         return;
+317:       }
+318: 
+319:       // Make sure we have a valid ID
+320:       if (!student.id || !isMongoDBId(student.id)) {
+321:         toast.error("Invalid student ID. Cannot update.");
+322:         console.error("Invalid ID for update:", student.id);
+323:         return;
+324:       }
+325: 
+326:       const classObj = classes.find(c => c.id === student.classId);
+327:       const totalFee = getClassTotalFee(classObj);
+328:       if (!classObj || (classObj.className !== "Graduated" && classObj.tuitionFee <= 0)) {
+329:         toast.error("Configure this class's tuition in Classes & Subjects before enrolling students");
+330:         return;
+331:       }
+332:       const feesPaid = Number(student.feesPaid) || 0;
+333:       const feesDue = Math.max(0, totalFee - feesPaid);
+334: 
+335:       const studentData = {
+336:         fullName: student.fullName.trim(),
+337:         gender: student.gender,
+338:         section: student.section || "englophone",
+339:         dob: student.dob,
+340:         classId: student.classId,
+341:         department: student.department,
+342:         parentName: student.parentName.trim(),
+343:         parentPhone: student.parentPhone.trim(),
+344:         address: student.address.trim(),
+345:         photoUrl: student.photoUrl || "",
+346:         registrationDate: student.registrationDate || new Date().toISOString().slice(0, 10),
+347:         feesPaid,
+348:         feesDue,
+349:         tuitionFee: classObj.tuitionFee,
+350:         tuitionInstallments: classObj.tuitionInstallments,
+351:         registrationFeeRequired: classObj.registrationFeeRequired,
+352:         registrationFeeAmount: classObj.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
+353:       };
+354: 
+355:       console.log("🔄 Updating student with ID:", student.id);
+356: 
+357:       const response = await axios.put(`${API_BASE}/students/${student.id}`, studentData);
+358:       if (response.data.success) {
+359:         toast.success("Student updated successfully");
+360:         await refreshList();
+361:         setEditing(null);
+362:       }
+363:     } catch (error: any) {
+364:       console.error("Error updating student:", error);
+365:       handleApiError(error);
+366:     }
+367:   };
+368: 
+369:   // Handle API errors
+370:   const handleApiError = (error: any) => {
+371:     if (error.response) {
+372:       const errorMessage = error.response.data?.message || "Operation failed";
+373:       if (error.response.status === 409) {
+374:         toast.error("Duplicate entry. This student may already exist.");
+375:       } else if (error.response.status === 400) {
+376:         toast.error(`Validation error: ${errorMessage}`);
+377:       } else if (error.response.status === 404) {
+378:         toast.error("Student not found. It may have been deleted.");
+379:       } else if (error.response.status === 500) {
+380:         toast.error("Server error. Please try again later.");
+381:       } else {
+382:         toast.error(errorMessage);
+383:       }
+384:     } else if (error.request) {
+385:       toast.error("No response from server. Please check your connection.");
+386:     } else {
+387:       toast.error(`Error: ${error.message}`);
+388:     }
+389:   };
+390: 
+391:   // DELETE - Delete a student
+392:   const deleteStudent = async (id: string) => {
+393:     // Check if id exists and is valid
+394:     if (!id) {
+395:       toast.error("Student ID is missing. Cannot delete.");
+396:       console.error("Missing ID for delete");
+397:       return;
+398:     }
+399: 
+400:     if (!isMongoDBId(id)) {
+401:       toast.error("Invalid student ID format. Cannot delete.");
+402:       console.error("Invalid ID for delete:", id);
+403:       return;
+404:     }
+405: 
+406:     if (!window.confirm("Are you sure you want to delete this student?")) return;
+407: 
+408:     try {
+409:       console.log("🗑️ Deleting student with ID:", id);
+410:       const response = await axios.delete(`${API_BASE}/students/${id}`);
+411:       if (response.data.success) {
+412:         toast.success("Student deleted successfully");
+413:         await refreshList();
+414:       }
+415:     } catch (error: any) {
+416:       console.error("Error deleting student:", error);
+417:       handleApiError(error);
+418:     }
+419:   };
+420: 
+421:   // Exports and printing always work on every student matching the current
+422:   // filters (not only the page on screen), so the downloads stay complete.
+423:   const fetchExportRows = async (): Promise<Student[] | null> => {
+424:     setExporting(true);
+425:     const loadingToast = toast.loading("Preparing export...");
+426:     try {
+427:       const rows = await fetchAllMatching();
+428:       if (!rows.length) {
+429:         toast.error("No students match your filters");
+430:         return null;
+431:       }
+432:       return rows;
+433:     } catch (error: any) {
+434:       toast.error(error.response?.data?.message || "Failed to load the students to export");
+435:       console.error("Error loading students for export:", error);
+436:       return null;
+437:     } finally {
+438:       toast.dismiss(loadingToast);
+439:       setExporting(false);
+440:     }
+441:   };
+442: 
+443:   // Export to CSV
+444:   const exportCSV = async () => {
+445:     const headers = ["Full Name", "Gender", "Class", "Department", "Parent Name", "Parent Phone", "Fees Paid", "Fees Due", "Status"];
+446: 
+447:     const exportRows = await fetchExportRows();
+448:     if (!exportRows) return;
+449: 
+450:     const rows = exportRows.map((s) => {
+451:       const classObj = classes.find(c => c.id === s.classId);
+452:       const totalFee = getClassTotalFee(classObj);
+453:       const status = s.feesDue === 0 ? "Fully Paid" : s.feesDue < totalFee ? "Partial" : "Owing";
+454:       return [
+455:         s.fullName,
+456:         s.gender,
+457:         classObj?.className || "",
+458:         s.department,
+459:         s.parentName,
+460:         s.parentPhone,
+461:         s.feesPaid.toString(),
+462:         s.feesDue.toString(),
+463:         status
+464:       ];
+465:     });
+466: 
+467:     const csvContent = [
+468:       headers.join(","),
+469:       ...rows.map(row => row.join(","))
+470:     ].join("\n");
+471: 
+472:     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+473:     const link = document.createElement("a");
+474:     link.href = URL.createObjectURL(blob);
+475:     link.download = `students_${new Date().toISOString().slice(0, 10)}.csv`;
+476:     link.click();
+477:     URL.revokeObjectURL(link.href);
+478:     toast.success(`CSV exported successfully (${exportRows.length} students)`);
+479:   };
+480: 
+481:   // Export to PDF
+482:   const exportPDF = async () => {
+483:     const exportRows = await fetchExportRows();
+484:     if (!exportRows) return;
+485: 
+486:     const doc = new jsPDF();
+487: 
+488:     doc.setFontSize(18);
+489:     doc.text("Students Report", 14, 22);
+490:     doc.setFontSize(10);
+491:     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
+492: 
+493:     let filterInfo = "All Students";
+494:     if (classFilter !== "all") {
+495:       const classObj = classes.find(c => c.id === classFilter);
+496:       filterInfo = `Class: ${classObj?.className || ""}`;
+497:     }
+498:     if (feeStatusFilter === "paid") filterInfo += " - Fully Paid";
+499:     else if (feeStatusFilter === "owing") filterInfo += " - Owing";
+500:     else if (feeStatusFilter === "partial") filterInfo += " - Partial Payment";
+501:     doc.text(`Filter: ${filterInfo}`, 14, 36);
+502:     doc.text(`Total: ${exportRows.length} students`, 14, 42);
+503: 
+504:     const tableData = exportRows.map((s) => {
+505:       const classObj = classes.find(c => c.id === s.classId);
+506:       const totalFee = getClassTotalFee(classObj);
+507:       const status = s.feesDue === 0 ? "Paid" : s.feesDue < totalFee ? "Partial" : "Owing";
+508:       return [
+509:         s.fullName,
+510:         classObj?.className || "",
+511:         s.department,
+512:         s.parentName,
+513:         s.parentPhone,
+514:         `${s.feesPaid.toLocaleString()}`,
+515:         `${s.feesDue.toLocaleString()}`,
+516:         status
+517:       ];
+518:     });
+519: 
+520:     (doc as any).autoTable({
+521:       startY: 48,
+522:       head: [["Name", "Class", "Dept", "Parent", "Phone", "Paid", "Due", "Status"]],
+523:       body: tableData,
+524:       theme: 'striped',
+525:       headStyles: { fillColor: [0, 0, 0], fontSize: 8 },
+526:       bodyStyles: { fontSize: 7 },
+527:       columnStyles: {
+528:         0: { cellWidth: 30 },
+529:         1: { cellWidth: 20 },
+530:         2: { cellWidth: 20 },
+531:         3: { cellWidth: 25 },
+532:         4: { cellWidth: 25 },
+533:         5: { cellWidth: 20 },
+534:         6: { cellWidth: 20 },
+535:         7: { cellWidth: 20 }
+536:       }
+537:     });
+538: 
+539:     const totalPaid = exportRows.reduce((sum, s) => sum + s.feesPaid, 0);
+540:     const totalDue = exportRows.reduce((sum, s) => sum + s.feesDue, 0);
+541:     const owingCount = exportRows.filter(s => s.feesDue > 0).length;
+542: 
+543:     const finalY = (doc as any).lastAutoTable.finalY + 10;
+544:     doc.setFontSize(10);
+545:     doc.text(`Summary:`, 14, finalY);
+546:     doc.text(`Total Students: ${exportRows.length}`, 14, finalY + 6);
+547:     doc.text(`Total Fees Paid: ${totalPaid.toLocaleString()} XAF`, 14, finalY + 12);
+548:     doc.text(`Total Fees Due: ${totalDue.toLocaleString()} XAF`, 14, finalY + 18);
+549:     doc.text(`Students Owing: ${owingCount}`, 14, finalY + 24);
+550: 
+551:     doc.save(`students_report_${new Date().toISOString().slice(0, 10)}.pdf`);
+552:     toast.success(`PDF exported successfully (${exportRows.length} students)`);
+553:   };
+554: 
+555:   // Print owing students
+556:   const printOwingStudents = async () => {
+557:     const exportRows = await fetchExportRows();
+558:     if (!exportRows) return;
+559: 
+560:     const owingStudents = exportRows.filter(s => s.feesDue > 0);
+561: 
+562:     if (owingStudents.length === 0) {
+563:       toast.error("No students with outstanding fees");
+564:       return;
+565:     }
+566: 
+567:     const printWindow = window.open('', '_blank', 'width=800,height=600');
+568:     if (!printWindow) {
+569:       toast.error("Please allow popups for printing");
+570:       return;
+571:     }
+572: 
+573:     let html = `
+574:       <!DOCTYPE html>
+575:       <html>
+576:       <head>
+577:         <title>Students with Outstanding Fees</title>
+578:         <style>
+579:           body { font-family: Arial, sans-serif; padding: 20px; }
+580:           h1 { color: #333; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+581:           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+582:           th { background-color: #f5f5f5; padding: 10px; text-align: left; border: 1px solid #ddd; }
+583:           td { padding: 8px 10px; border: 1px solid #ddd; }
+584:           .total { margin-top: 20px; font-weight: bold; }
+585:           .fee-due { color: #dc3545; font-weight: bold; }
+586:         </style>
+587:       </head>
+588:       <body>
+589:         <h1>Students with Outstanding Fees</h1>
+590:         <p>Generated: ${new Date().toLocaleString()}</p>
+591:         <p>Total: ${owingStudents.length} students</p>
+592:         <table>
+593:           <thead>
+594:             <tr>
+595:               <th>#</th>
+596:               <th>Student Name</th>
+597:               <th>Class</th>
+598:               <th>Parent</th>
+599:               <th>Phone</th>
+600:               <th>Fees Paid</th>
+601:               <th>Fees Due</th>
+602:             </tr>
+603:           </thead>
+604:           <tbody>
+605:     `;
+606: 
+607:     owingStudents.forEach((s, index) => {
+608:       const classObj = classes.find(c => c.id === s.classId);
+609:       html += `
+610:         <tr>
+611:           <td>${index + 1}</td>
+612:           <td>${s.fullName}</td>
+613:           <td>${classObj?.className || ""}</td>
+614:           <td>${s.parentName}</td>
+615:           <td>${s.parentPhone}</td>
+616:           <td>${s.feesPaid.toLocaleString()}</td>
+617:           <td class="fee-due">${s.feesDue.toLocaleString()}</td>
+618:         </tr>
+619:       `;
+620:     });
+621: 
+622:     const totalDue = owingStudents.reduce((sum, s) => sum + s.feesDue, 0);
+623: 
+624:     html += `
+625:           </tbody>
+626:         </table>
+627:         <div class="total">
+628:           <p>Total Fees Due: ${totalDue.toLocaleString()} XAF</p>
+629:         </div>
+630:         <script>
+631:           window.onload = function() { window.print(); }
+632:         <\/script>
+633:       </body>
+634:       </html>
+635:     `;
+636: 
+637:     printWindow.document.write(html);
+638:     printWindow.document.close();
+639:   };
+640: 
+641:   if (loading) {
+642:     return <CompactPageLoader label="Loading students..." />;
+643:   }
+644: 
+645:   return (
+646:     <div className="space-y-6">
+647:       <div className="flex items-center justify-between flex-wrap gap-3">
+648:         <div>
+649:           <h1 className="font-display text-3xl font-extrabold tracking-tight">Students</h1>
+650:           <p className="text-sm text-black/60 mt-1">
+651:             {total.toLocaleString()} total · showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()}
+652:           </p>
+653:         </div>
+654:         <div className="flex w-full flex-col gap-2 xs:flex-row sm:w-auto">
+655:           <div className="grid w-full grid-cols-2 gap-2 xs:flex xs:w-auto xs:flex-1 sm:flex-none">
+656:             <button
+657:               onClick={() => void printOwingStudents()}
+658:               disabled={exporting}
+659:               className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold whitespace-nowrap hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-4"
+660:             >
+661:               {exporting ? <Loader2 className="size-4 shrink-0 animate-spin" /> : <Printer className="size-4 shrink-0" />}
+662:               <span className="truncate">Print Owing</span>
+663:             </button>
+664:             <button
+665:               onClick={() => void exportCSV()}
+666:               disabled={exporting}
+667:               className="flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold whitespace-nowrap hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-4"
+668:             >
+669:               {exporting ? <Loader2 className="size-4 shrink-0 animate-spin" /> : <Download className="size-4 shrink-0" />}
+670:               <span className="truncate">CSV</span>
+671:             </button>
+672:           </div>
+673:           {canEdit && (
+674:             <button
+675:               onClick={() => setShowNew(true)}
+676:               className="flex min-h-10 w-full min-w-0 items-center justify-center gap-2 rounded-xl bg-brand px-3 py-2.5 text-sm font-semibold whitespace-nowrap text-white hover:bg-brand/90 xs:w-auto xs:flex-1 sm:w-auto sm:flex-none sm:px-4"
+677:             >
+678:               <Plus className="size-4 shrink-0" />
+679:               <span className="truncate">Add Student</span>
+680:             </button>
+681:           )}
+682:         </div>
+683:       </div>
+684: 
+685:       {/* Filters */}
+686:       <div className="grid min-w-0 gap-3 rounded-2xl border border-stone-200 bg-white p-3 sm:flex sm:flex-wrap sm:items-center sm:p-4">
+687:         <div className="relative min-w-0 w-full sm:flex-1 sm:basis-[200px]">
+688:           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-black/40" />
+689:           <input
+690:             value={searchInput}
+691:             onChange={(e) => setSearchInput(e.target.value)}
+692:             placeholder="Search by name or parent..."
+693:             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand text-sm"
+694:           />
+695:         </div>
+696:         <div className="flex min-w-0 items-center gap-2 text-sm">
+697:           <Filter className="size-4 text-black/40" />
+698:           <select value={classFilter} onChange={(e) => changeClassFilter(e.target.value)} className="min-w-0 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium sm:w-auto sm:max-w-[220px]">
+699:             <option value="all">All classes</option>
+700:             {classes.map((c) => <option key={c.id} value={c.id}>{c.className + " " + c.department}</option>)}
+701:           </select>
+702:         </div>
+703:         <div className="flex min-w-0 items-center gap-2 text-sm">
+704:           <select value={feeStatusFilter} onChange={(e) => changeFeeStatusFilter(e.target.value)} className="min-w-0 w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-medium sm:w-auto">
+705:             <option value="all">All Fees</option>
+706:             <option value="paid">Fully Paid</option>
+707:             <option value="partial">Partial Payment</option>
+708:             <option value="owing">Owing</option>
+709:           </select>
+710:         </div>
+711:       </div>
+712: 
+713:       {/* Table */}
+714:       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+715:         {listLoading && (
+716:           <div role="status" className="flex items-center gap-2 border-b border-blue-100 bg-blue-50 px-5 py-2 text-sm text-blue-800">
+717:             <Loader2 className="size-4 animate-spin" />
+718:             <span>Loading students…</span>
+719:           </div>
+720:         )}
+721:         <div className="overflow-x-auto">
+722:           <table className={`w-full min-w-[900px] text-sm transition-opacity ${listLoading ? "opacity-50" : "opacity-100"}`}>
+723:             <thead className="bg-stone-50 text-left text-[10px] uppercase tracking-widest text-black/50 font-bold">
+724:               <tr>
+725:                 <th className="px-5 py-3">Name</th>
+726:                 <th className="px-5 py-3">Class</th>
+727:                 <th className="px-5 py-3">Department</th>
+728:                 <th className="px-5 py-3">Parent</th>
+729:                 <th className="px-5 py-3">Phone</th>
+730:                 <th className="px-5 py-3">Fees Paid</th>
+731:                 <th className="px-5 py-3">Fees Due</th>
+732:                 <th className="px-5 py-3">Status</th>
+733:                 {canEdit && <th className="px-5 py-3 text-right">Actions</th>}
+734:               </tr>
+735:             </thead>
+736:             <tbody className="divide-y divide-stone-100">
+737:               {filtered.map((s) => {
+738:                 const classObj = classes.find(c => c.id === s.classId);
+739:                 const totalFee = getClassTotalFee(classObj);
+740:                 const status = s.feesDue === 0 ? "Fully Paid" : s.feesDue < totalFee ? "Partial" : "Owing";
+741:                 const statusColor = s.feesDue === 0 ? "bg-brand/10 text-brand" : s.feesDue < totalFee ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700";
+742: 
+743:                 return (
+744:                   <tr key={s.id} className="hover:bg-stone-50">
+745:                     <td className="px-5 py-3 font-semibold">{s.fullName}</td>
+746:                     <td className="px-5 py-3">{classObj?.className || "—"}</td>
+747:                     <td className="px-5 py-3">
+748:                       <span className="text-xs px-2 py-1 rounded-full bg-stone-100 font-medium">{s.department}</span>
+749:                     </td>
+750:                     <td className="px-5 py-3 text-xs">{s.parentName}</td>
+751:                     <td className="px-5 py-3 text-xs">{s.parentPhone}</td>
+752:                     <td className="px-5 py-3">{s.feesPaid.toLocaleString()}</td>
+753:                     <td className="px-5 py-3 font-bold">{s.feesDue.toLocaleString()}</td>
+754:                     <td className="px-5 py-3">
+755:                       <span className={`text-xs px-2 py-1 rounded-full font-bold ${statusColor}`}>
+756:                         {status}
+757:                       </span>
+758:                     </td>
+759:                     {canEdit && (
+760:                       <td className="px-5 py-3 text-right">
+761:                         <div className="flex justify-end gap-1">
+762:                           <button
+763:                             onClick={() => {
+764:                               console.log("📝 Editing student:", s);
+765:                               setEditing(s);
+766:                             }}
+767:                             className="size-8 grid place-items-center rounded-lg hover:bg-stone-100 text-black/60"
+768:                           >
+769:                             <Pencil className="size-3.5" />
+770:                           </button>
+771:                           <button
+772:                             onClick={() => {
+773:                               console.log("🗑️ Deleting student ID:", s.id);
+774:                               deleteStudent(s.id);
+775:                             }}
+776:                             className="size-8 grid place-items-center rounded-lg hover:bg-red-50 text-red-600"
+777:                           >
+778:                             <Trash2 className="size-3.5" />
+779:                           </button>
+780:                         </div>
+781:                       </td>
+782:                     )}
+783:                   </tr>
+784:                 );
+785:               })}
+786:               {!listLoading && filtered.length === 0 && (
+787:                 <tr>
+788:                   <td colSpan={canEdit ? 9 : 8} className="text-center py-12 text-black/40 text-sm">
+789:                     No students match your filters.
+790:                   </td>
+791:                 </tr>
+792:               )}
+793:             </tbody>
+794:           </table>
+795:         </div>
+796:       </div>
+797: 
+798:       {/* Pagination */}
+799:       <div className="flex flex-wrap items-center justify-between gap-3">
+800:         <p className="text-xs text-black/60">
+801:           Showing <strong>{rangeStart.toLocaleString()}</strong>–<strong>{rangeEnd.toLocaleString()}</strong> of{" "}
+802:           <strong>{total.toLocaleString()}</strong> {classFilter === "all" ? "students (all classes)" : "students in this class"}
+803:         </p>
+804:         <div className="flex flex-wrap items-center gap-3">
+805:           <label className="flex items-center gap-2 text-xs text-black/60">
+806:             Rows
+807:             <select
+808:               value={pageSize}
+809:               onChange={(e) => changePageSize(Number(e.target.value))}
+810:               className="rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs font-semibold"
+811:             >
+812:               {PAGE_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size}</option>)}
+813:             </select>
+814:           </label>
+815:           <div className="flex items-center gap-1">
+816:             <button
+817:               type="button"
+818:               onClick={() => setPage(1)}
+819:               disabled={page <= 1 || listLoading}
+820:               title="First page"
+821:               className="size-8 grid place-items-center rounded-lg border border-stone-200 bg-white text-black/70 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
+822:             >
+823:               <ChevronsLeft className="size-4" />
+824:             </button>
+825:             <button
+826:               type="button"
+827:               onClick={() => setPage((current) => Math.max(1, current - 1))}
+828:               disabled={page <= 1 || listLoading}
+829:               title="Previous page"
+830:               className="size-8 grid place-items-center rounded-lg border border-stone-200 bg-white text-black/70 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
+831:             >
+832:               <ChevronLeft className="size-4" />
+833:             </button>
+834:             <span className="px-2 text-xs font-semibold text-black/60">Page {page} of {pageCount}</span>
+835:             <button
+836:               type="button"
+837:               onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+838:               disabled={page >= pageCount || listLoading}
+839:               title="Next page"
+840:               className="size-8 grid place-items-center rounded-lg border border-stone-200 bg-white text-black/70 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
+841:             >
+842:               <ChevronRight className="size-4" />
+843:             </button>
+844:             <button
+845:               type="button"
+846:               onClick={() => setPage(pageCount)}
+847:               disabled={page >= pageCount || listLoading}
+848:               title="Last page"
+849:               className="size-8 grid place-items-center rounded-lg border border-stone-200 bg-white text-black/70 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
+850:             >
+851:               <ChevronsRight className="size-4" />
+852:             </button>
+853:           </div>
+854:         </div>
+855:       </div>
+856: 
+857:       {/* New Student Dialog */}
+858:       {showNew && (
+859:         <StudentDialog
+860:           initial={{
+861:             id: "st_" + Math.random().toString(36).slice(2, 9),
+862:             fullName: "",
+863:             gender: "male",
+864:             section: classes[0]?.schoolSection || getStoredSchoolSection(),
+865:             dob: new Date().toISOString().slice(0, 10),
+866:             classId: classes[0]?.id || "",
+867:             department: classes[0]?.department || "Science",
+868:             parentName: "",
+869:             parentPhone: "",
+870:             address: "",
+871:             photoUrl: "",
+872:             registrationDate: new Date().toISOString().slice(0, 10),
+873:             feesPaid: 0,
+874:             feesDue: 0
+875:           }}
+876:           classes={classes}
+877:           mode="create"
+878:           onSave={createStudent}
+879:           onCancel={() => { setShowNew(false); }}
+880:         />
+881:       )}
+882: 
+883:       {/* Edit Student Dialog */}
+884:       {editing && (
+885:         <StudentDialog
+886:           initial={editing}
+887:           classes={classes}
+888:           mode="edit"
+889:           onSave={updateStudent}
+890:           onCancel={() => { setEditing(null); }}
+891:         />
+892:       )}
+893:     </div>
+894:   );
+895: }
+896: 
+897: // Student Dialog Component
+898: function StudentDialog({
+899:   initial,
+900:   classes,
+901:   mode,
+902:   onSave,
+903:   onCancel
+904: }: {
+905:   initial: Student;
+906:   classes: Class[];
+907:   mode: 'create' | 'edit';
+908:   onSave: (s: Student) => void;
+909:   onCancel: () => void;
+910: }) {
+911:   const [form, setForm] = useState<Student>(initial);
+912:   const [saving, setSaving] = useState(false);
+913:   const [step, setStep] = useState(0);
+914:   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+915:   const [cameraError, setCameraError] = useState("");
+916:   const videoRef = useRef<HTMLVideoElement>(null);
+917:   const uploadRef = useRef<HTMLInputElement>(null);
+918:   const steps = ["Student", "Class & fees", "Family", "Photo", "Review"];
+919: 
+920:   useEffect(() => {
+921:     if (videoRef.current && cameraStream) videoRef.current.srcObject = cameraStream;
+922:     return () => {
+923:       if (videoRef.current) videoRef.current.srcObject = null;
+924:     };
+925:   }, [cameraStream]);
+926: 
+927:   useEffect(() => () => {
+928:     cameraStream?.getTracks().forEach((track) => track.stop());
+929:   }, [cameraStream]);
+930: 
+931:   const set = <K extends keyof Student>(k: K, v: Student[K]) =>
+932:     setForm((f) => ({ ...f, [k]: v }));
+933: 
+934:   const handleClassChange = (classId: string) => {
+935:     const classObj = classes.find(c => c.id === classId);
+936:     const totalFee = getClassTotalFee(classObj);
+937:     setForm((current) => ({
+938:       ...current,
+939:       classId,
+940:       section: classObj?.schoolSection || current.section,
+941:       department: classObj?.department || current.department,
+942:       tuitionFee: classObj?.tuitionFee || 0,
+943:       tuitionInstallments: classObj?.tuitionInstallments || 1,
+944:       registrationFeeRequired: Boolean(classObj?.registrationFeeRequired),
+945:       registrationFeeAmount: classObj?.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
+946:       feesDue: Math.max(0, totalFee - (Number(current.feesPaid) || 0)),
+947:     }));
+948:   };
+949: 
+950:   const stopCamera = () => {
+951:     cameraStream?.getTracks().forEach((track) => track.stop());
+952:     setCameraStream(null);
+953:   };
+954: 
+955:   const startCamera = async () => {
+956:     setCameraError("");
+957:     if (!navigator.mediaDevices?.getUserMedia) {
+958:       setCameraError("Camera access is unavailable. Use HTTPS or localhost, or upload a photo instead.");
+959:       return;
+960:     }
+961:     try {
+962:       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+963:       setCameraStream(stream);
+964:     } catch (error) {
+965:       console.error("Unable to open student photo camera:", error);
+966:       setCameraError("Camera permission was denied or no camera was found. You can upload a photo instead.");
+967:     }
+968:   };
+969: 
+970:   const capturePhoto = () => {
+971:     const video = videoRef.current;
+972:     if (!video?.videoWidth || !video.videoHeight) {
+973:       setCameraError("The camera is still starting. Try again in a moment.");
+974:       return;
+975:     }
+976:     const scale = Math.min(1, 1280 / video.videoWidth);
+977:     const canvas = document.createElement("canvas");
+978:     canvas.width = Math.round(video.videoWidth * scale);
+979:     canvas.height = Math.round(video.videoHeight * scale);
+980:     const context = canvas.getContext("2d");
+981:     if (!context) {
+982:       setCameraError("Could not capture the photo. Please try again or upload an image.");
+983:       return;
+984:     }
+985:     context.drawImage(video, 0, 0, canvas.width, canvas.height);
+986:     set("photoUrl", canvas.toDataURL("image/jpeg", 0.82));
+987:     stopCamera();
+988:     setCameraError("");
+989:   };
+990: 
+991:   const uploadPhoto = async (event: React.ChangeEvent<HTMLInputElement>) => {
+992:     const file = event.target.files?.[0];
+993:     event.target.value = "";
+994:     if (!file) return;
+995:     if (!file.type.startsWith("image/")) {
+996:       toast.error("Choose an image file");
+997:       return;
+998:     }
+999:     if (file.size > 10 * 1024 * 1024) {
+1000:       toast.error("Choose an image smaller than 10 MB");
+1001:       return;
+1002:     }
+1003:     try {
+1004:       const bitmap = await createImageBitmap(file);
+1005:       const scale = Math.min(1, 1280 / bitmap.width);
+1006:       const canvas = document.createElement("canvas");
+1007:       canvas.width = Math.round(bitmap.width * scale);
+1008:       canvas.height = Math.round(bitmap.height * scale);
+1009:       const context = canvas.getContext("2d");
+1010:       if (!context) throw new Error("Unable to process this image");
+1011:       context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+1012:       bitmap.close();
+1013:       set("photoUrl", canvas.toDataURL("image/jpeg", 0.82));
+1014:       stopCamera();
+1015:       setCameraError("");
+1016:     } catch (error) {
+1017:       console.error("Unable to process student photo:", error);
+1018:       toast.error("Could not load this image. Try another photo.");
+1019:     }
+1020:   };
+1021: 
+1022:   const handleSave = async () => {
+1023:     if (!form.fullName.trim()) {
+1024:       toast.error("Full name is required");
+1025:       return;
+1026:     }
+1027:     if (!isEditing && step < steps.length - 1) {
+1028:       if (step === 1) {
+1029:         const selectedClass = classes.find((item) => item.id === form.classId);
+1030:         if (!selectedClass) {
+1031:           toast.error("Select a class to continue");
+1032:           return;
+1033:         }
+1034:         if (selectedClass.className !== "Graduated" && selectedClass.tuitionFee <= 0) {
+1035:           toast.error("This class needs a tuition amount configured before student enrollment");
+1036:           return;
+1037:         }
+1038:       }
+1039:       if (step === 2 && !form.parentPhone.trim()) {
+1040:         toast.error("Parent phone is required");
+1041:         return;
+1042:       }
+1043:       setStep((current) => current + 1);
+1044:       return;
+1045:     }
+1046: 
+1047:     if (!form.parentPhone.trim()) {
+1048:       toast.error("Parent phone is required");
+1049:       if (!isEditing) setStep(2);
+1050:       return;
+1051:     }
+1052:     if (!form.classId) {
+1053:       toast.error("Class is required");
+1054:       if (!isEditing) setStep(1);
+1055:       return;
+1056:     }
+1057: 
+1058:     setSaving(true);
+1059:     try {
+1060:       await onSave(form);
+1061:     } finally {
+1062:       setSaving(false);
+1063:     }
+1064:   };
+1065: 
+1066:   const isEditing = mode === 'edit';
+1067:   const selectedClass = classes.find((item) => item.id === form.classId);
+1068:   const tuitionFee = selectedClass?.tuitionFee ?? form.tuitionFee ?? 0;
+1069:   const installmentCount = selectedClass?.tuitionInstallments ?? form.tuitionInstallments ?? 1;
+1070:   const registrationRequired = selectedClass?.registrationFeeRequired ?? form.registrationFeeRequired ?? false;
+1071:   const registrationAmount = registrationRequired
+1072:     ? selectedClass?.registrationFeeAmount ?? form.registrationFeeAmount ?? 0
+1073:     : 0;
+1074: 
+1075:   const stepHeading = steps[step];
+1076: 
+1077:   return (
+1078:     <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={onCancel}>
+1079:       <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+1080:         <h3 className="font-display font-bold text-xl mb-1">
+1081:           {isEditing ? "Edit Student" : "Add Student"}
+1082:         </h3>
+1083:         <p className="text-xs text-black/50 mb-5">
+1084:           {isEditing ? "Update student details below." : `Step ${step + 1} of ${steps.length} · ${stepHeading}`}
+1085:         </p>
+1086: 
+1087:         {!isEditing && (
+1088:           <div className="mb-6">
+1089:             <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-stone-100">
+1090:               <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
+1091:             </div>
+1092:             <ol className="grid grid-cols-5 gap-2">
+1093:               {steps.map((label, index) => (
+1094:                 <li key={label}>
+1095:                   <button
+1096:                     type="button"
+1097:                     onClick={() => index < step && setStep(index)}
+1098:                     disabled={index >= step || saving}
+1099:                     className={`flex w-full items-center gap-1.5 text-left text-[10px] font-semibold sm:text-xs ${index === step ? "text-brand" : index < step ? "text-black/60" : "text-black/30"}`}
+1100:                   >
+1101:                     <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[10px] ${index <= step ? "bg-brand text-white" : "bg-stone-100 text-black/40"}`}>
+1102:                       {index + 1}
+1103:                     </span>
+1104:                     <span className="hidden sm:inline">{label}</span>
+1105:                   </button>
+1106:                 </li>
+1107:               ))}
+1108:             </ol>
+1109:           </div>
+1110:         )}
+1111: 
+1112:         {(isEditing || step === 0) && (
+1113:           <section className="space-y-4">
+1114:             {!isEditing && <h4 className="font-display font-bold">Student details</h4>}
+1115:             <div className="grid gap-4 sm:grid-cols-2">
+1116:               <Field label="Full Name*">
+1117:                 <input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} className={inputCls} required autoFocus={!isEditing} />
+1118:               </Field>
+1119:               <Field label="Gender">
+1120:                 <select value={form.gender} onChange={(e) => set("gender", e.target.value)} className={inputCls}>
+1121:                   <option value="male">Male</option>
+1122:                   <option value="female">Female</option>
+1123:                 </select>
+1124:               </Field>
+1125:               <Field label="Date of Birth">
+1126:                 <input type="date" value={form.dob} onChange={(e) => set("dob", e.target.value)} className={inputCls} />
+1127:               </Field>
+1128:             </div>
+1129:           </section>
+1130:         )}
+1131: 
+1132:         {(isEditing || step === 1) && (
+1133:           <section className="space-y-4">
+1134:             {!isEditing && <h4 className="font-display font-bold">Class and fees</h4>}
+1135:             <Field label="Class*">
+1136:               <select value={form.classId} onChange={(e) => handleClassChange(e.target.value)} className={inputCls} required>
+1137:                 <option value="">Select class</option>
+1138:                 {classes.filter((schoolClass) => schoolClass.schoolSection === form.section).map((schoolClass) => (
+1139:                   <option key={schoolClass.id} value={schoolClass.id}>
+1140:                     {schoolClass.className} - {schoolClass.department} · {schoolClass.tuitionFee.toLocaleString()} XAF
+1141:                   </option>
+1142:                 ))}
+1143:               </select>
+1144:             </Field>
+1145:             {form.classId ? (
+1146:               <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm">
+1147:                 <p className="font-bold text-[#121212]">Fee plan · {selectedClass?.className} {selectedClass?.department}</p>
+1148:                 <div className="mt-2 grid gap-2 text-xs text-black/65 sm:grid-cols-2">
+1149:                   <p>Tuition <strong className="block text-sm">{tuitionFee.toLocaleString()} XAF</strong></p>
+1150:                   <p>Installments <strong className="block text-sm">{installmentCount} equal payments · about {installmentCount ? Math.ceil(tuitionFee / installmentCount).toLocaleString() : 0} XAF each</strong></p>
+1151:                   <p>Registration fee <strong className="block text-sm">{registrationRequired ? `${registrationAmount.toLocaleString()} XAF required` : "Not required"}</strong></p>
+1152:                   <p>Total required <strong className="block text-sm">{(tuitionFee + registrationAmount).toLocaleString()} XAF</strong></p>
+1153:                 </div>
+1154:               </div>
+1155:             ) : (
+1156:               <p className="rounded-lg bg-stone-50 p-4 text-sm text-black/50">Choose a class to see its tuition and registration requirements.</p>
+1157:             )}
+1158:           </section>
+1159:         )}
+1160: 
+1161:         {(isEditing || step === 2) && (
+1162:           <section className="space-y-4">
+1163:             {!isEditing && <h4 className="font-display font-bold">Parent and registration details</h4>}
+1164:             <div className="grid gap-4 sm:grid-cols-2">
+1165:               <Field label="Parent Name">
+1166:                 <input value={form.parentName} onChange={(e) => set("parentName", e.target.value)} className={inputCls} />
+1167:               </Field>
+1168:               <Field label="Parent Phone*">
+1169:                 <input value={form.parentPhone} onChange={(e) => set("parentPhone", e.target.value)} className={inputCls} required />
+1170:               </Field>
+1171:               <Field label="Address">
+1172:                 <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inputCls} />
+1173:               </Field>
+1174:               <Field label="Registration Date">
+1175:                 <input type="date" value={form.registrationDate} onChange={(e) => set("registrationDate", e.target.value)} className={inputCls} />
+1176:               </Field>
+1177:             </div>
+1178:           </section>
+1179:         )}
+1180: 
+1181:         {(isEditing || step === 3) && (
+1182:           <section className="space-y-4">
+1183:             {!isEditing && <h4 className="font-display font-bold">Student photo <span className="text-xs font-normal text-black/45">Optional</span></h4>}
+1184:             <input ref={uploadRef} type="file" accept="image/*" onChange={uploadPhoto} className="hidden" />
+1185:             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_220px]">
+1186:               <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
+1187:                 {cameraStream ? (
+1188:                   <video ref={videoRef} autoPlay playsInline muted className="aspect-[4/3] w-full object-cover" />
+1189:                 ) : form.photoUrl ? (
+1190:                   <img src={form.photoUrl} alt="Student photo preview" className="aspect-[4/3] w-full object-cover" />
+1191:                 ) : (
+1192:                   <div className="grid aspect-[4/3] place-items-center text-center text-black/40">
+1193:                     <div>
+1194:                       <ImagePlus className="mx-auto mb-2 size-8" />
+1195:                       <p className="text-sm font-semibold">No photo selected</p>
+1196:                       <p className="mt-1 text-xs">Capture with webcam or upload an image</p>
+1197:                     </div>
+1198:                   </div>
+1199:                 )}
+1200:               </div>
+1201:               <div className="flex flex-col gap-2">
+1202:                 {cameraStream ? (
+1203:                   <>
+1204:                     <button type="button" onClick={capturePhoto} className="flex items-center justify-center gap-2 rounded-lg bg-brand px-3 py-2.5 text-sm font-semibold text-white hover:bg-brand/90">
+1205:                       <Camera className="size-4" /> Take photo
+1206:                     </button>
+1207:                     <button type="button" onClick={stopCamera} className="flex items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-stone-50">
+1208:                       <X className="size-4" /> Stop camera
+1209:                     </button>
+1210:                   </>
+1211:                 ) : (
+1212:                   <button type="button" onClick={() => void startCamera()} className="flex items-center justify-center gap-2 rounded-lg bg-brand px-3 py-2.5 text-sm font-semibold text-white hover:bg-brand/90">
+1213:                     <Camera className="size-4" /> Use webcam
+1214:                   </button>
+1215:                 )}
+1216:                 <button type="button" onClick={() => uploadRef.current?.click()} className="flex items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-stone-50">
+1217:                   <Upload className="size-4" /> Upload photo
+1218:                 </button>
+1219:                 {form.photoUrl && (
+1220:                   <button type="button" onClick={() => set("photoUrl", "")} className="flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">
+1221:                     <Trash2 className="size-4" /> Remove photo
+1222:                   </button>
+1223:                 )}
+1224:                 <p className="text-xs leading-5 text-black/45">Images are resized before saving. Maximum upload size: 10 MB.</p>
+1225:               </div>
+1226:             </div>
+1227:             {cameraError && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{cameraError}</p>}
+1228:             {!isEditing && <p className="text-xs text-black/50">You can skip this step and add a photo later.</p>}
+1229:           </section>
+1230:         )}
+1231: 
+1232:         {!isEditing && step === 4 && (
+1233:           <section className="space-y-4">
+1234:             <h4 className="font-display font-bold">Review student information</h4>
+1235:             <div className="grid gap-3 rounded-xl border border-stone-200 p-4 sm:grid-cols-2">
+1236:               <ReviewItem label="Photo" value={form.photoUrl ? "Photo added" : "Not provided"} />
+1237:               <ReviewItem label="Student" value={form.fullName} />
+1238:               <ReviewItem label="Gender" value={form.gender} />
+1239:               <ReviewItem label="Date of birth" value={form.dob || "Not provided"} />
+1240:               <ReviewItem label="Class" value={`${selectedClass?.className || "—"} ${selectedClass?.department || ""}`} />
+1241:               <ReviewItem label="Parent" value={form.parentName || "Not provided"} />
+1242:               <ReviewItem label="Parent phone" value={form.parentPhone} />
+1243:               <ReviewItem label="Tuition" value={`${tuitionFee.toLocaleString()} XAF`} />
+1244:               <ReviewItem label="Installments" value={`${installmentCount} equal payments`} />
+1245:               <ReviewItem label="Registration fee" value={registrationRequired ? `${registrationAmount.toLocaleString()} XAF required` : "Not required"} />
+1246:               <ReviewItem label="Total required" value={`${(tuitionFee + registrationAmount).toLocaleString()} XAF`} />
+1247:             </div>
+1248:             <p className="text-xs text-black/50">The fee plan is saved with the student. Payments can be recorded later under Fees & Finance.</p>
+1249:           </section>
+1250:         )}
+1251: 
+1252:         <div className="flex justify-end gap-2 mt-6">
+1253:           <button
+1254:             onClick={onCancel}
+1255:             className="px-4 py-2.5 rounded-xl border border-stone-200 text-sm font-semibold hover:bg-stone-50"
+1256:             disabled={saving}
+1257:           >
+1258:             Cancel
+1259:           </button>
+1260:           {!isEditing && step > 0 && (
+1261:             <button
+1262:               type="button"
+1263:               onClick={() => setStep((current) => Math.max(0, current - 1))}
+1264:               className="px-4 py-2.5 rounded-xl border border-stone-200 text-sm font-semibold hover:bg-stone-50"
+1265:               disabled={saving}
+1266:             >
+1267:               Back
+1268:             </button>
+1269:           )}
+1270:           {!isEditing && step === 3 && (
+1271:             <button
+1272:               type="button"
+1273:               onClick={() => setStep(4)}
+1274:               className="mr-auto px-2 py-2.5 text-sm font-semibold text-black/55 hover:text-black"
+1275:               disabled={saving}
+1276:             >
+1277:               Skip photo
+1278:             </button>
+1279:           )}
+1280:           <button
+1281:             onClick={handleSave}
+1282:             className="px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed"
+1283:             disabled={saving}
+1284:           >
+1285:             {saving ? "Saving..." : isEditing ? "Update Student" : step < steps.length - 1 ? "Continue" : "Add Student"}
+1286:           </button>
+1287:         </div>
+1288:       </div>
+1289:     </div>
+1290:   );
+1291: }
+1292: 
+1293: const inputCls = "w-full px-3 py-2 rounded-lg border border-stone-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand";
+1294: 
+1295: function ReviewItem({ label, value }: { label: string; value: string }) {
+1296:   return (
+1297:     <div className="min-w-0">
+1298:       <p className="text-[10px] font-bold uppercase tracking-widest text-black/40">{label}</p>
+1299:       <p className="mt-1 truncate text-sm font-semibold text-[#121212]">{value}</p>
+1300:     </div>
+1301:   );
+1302: }
+1303: 
+1304: function Field({ label, children }: { label: string; children: React.ReactNode }) {
+1305:   return (
+1306:     <label className="block">
+1307:       <span className="text-[10px] uppercase tracking-widest font-bold text-black/50">{label}</span>
+1308:       <div className="mt-1">{children}</div>
+1309:     </label>
+1310:   );
+1311: }
