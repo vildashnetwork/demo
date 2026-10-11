@@ -1,6 +1,21 @@
 import mongoose from "mongoose";
 import { syncTombstonePlugin } from "../db/syncPlugin.js";
 
+// ==================== BCHS BRAND (project "brain") ====================
+// The single source of truth for the school name and the project color is
+// the frontend design system (frontend/src/styles.css -> @theme) and the app
+// title (frontend/index.html / backend manifest). These exports mirror it so
+// anything rendered from this model (registers, reports, exports) carries the
+// same school name and brand colors.
+export const SCHOOL_NAME = "BCHS DOUALA";
+export const SCHOOL_SHORT = "BCHS";
+export const BRAND = {
+    primary: "#155DAA",   // --color-brand       (main project color)
+    soft: "#EAF2FB",      // --color-brand-soft  (light tint / banners)
+    ink: "#121212",       // --color-ink         (body text)
+    accent: "#d2ad4b"     // gold accent used on printed documents
+};
+
 // ==================== STUDENT ATTENDANCE ====================
 // One document per student, per school day and per "period".
 // period = "day"  -> the daily register (one mark for the whole day)

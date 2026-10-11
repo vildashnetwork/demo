@@ -10,7 +10,7 @@ import "jspdf-autotable";
 const API_BASE = import.meta.env.VITE_API_URL;
 
 // Types
-interface Student {
+export interface Student {
   id: string;
   fullName: string;
   gender: string;
@@ -34,9 +34,16 @@ interface Student {
   registrationFeeRequired?: boolean;
   registrationFeeAmount?: number;
   registrationFeePaid?: number;
+  upfrontPayment?: number;
+  firstInstallment?: number;
+  secondInstallment?: number;
+  thirdInstallment?: number;
+  registrationRequirements?: Array<{ id: string; label: string; checked?: boolean }>;
+  // Ledger of individual payments (populated by the pay-fees route).
+  feePayments?: Array<{ feeType: "tuition" | "registration"; amount: number; installmentNumber?: number; paidAt: string }>;
 }
 
-interface Class {
+export interface Class {
   id: string;
   className: string;
   department: string;
@@ -50,7 +57,7 @@ interface Class {
   registrationFeeAmount: number;
 }
 
-function getClassTotalFee(schoolClass?: Class): number {
+export function getClassTotalFee(schoolClass?: Class): number {
   if (!schoolClass) return 0;
   return Number(schoolClass.tuitionFee || 0)
     + (schoolClass.registrationFeeRequired ? Number(schoolClass.registrationFeeAmount || 0) : 0);
@@ -261,13 +268,14 @@ export function StudentsPage() {
       }
       const tuitionPaid = Number(student.tuitionFeePaid) || 0;
       const registrationPaid = Number(student.registrationFeePaid) || 0;
-      const feesPaid = tuitionPaid + registrationPaid;
+      const upfrontPayment = Math.max(0, Number((student as any).upfrontPayment) || 0);
+      const feesPaid = tuitionPaid + registrationPaid + upfrontPayment;
       const feesDue = Math.max(0, totalFee - feesPaid);
 
       const studentData = {
         fullName: student.fullName.trim(),
         gender: student.gender,
-        section: student.section || "englophone",
+        section: classObj.schoolSection || student.section || "englophone",
         dob: student.dob,
         classId: student.classId,
         department: student.department,
@@ -280,7 +288,7 @@ export function StudentsPage() {
         feesDue,
         tuitionFee: classObj.tuitionFee,
         tuitionInstallments: classObj.tuitionInstallments,
-        tuitionFeePaid: tuitionPaid,
+        tuitionFeePaid: tuitionPaid + upfrontPayment,
         tuitionInstallmentsPaid: Number(student.tuitionInstallmentsPaid) || 0,
         registrationFeeRequired: classObj.registrationFeeRequired,
         registrationFeeAmount: classObj.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
@@ -295,8 +303,15 @@ export function StudentsPage() {
         setShowNew(false);
       }
     } catch (error: any) {
-      console.error("Error creating student:", error);
-      handleApiError(error);
+      const data = error?.response?.data;
+      const detail =
+        (Array.isArray(data?.errors) && data.errors.length ? data.errors.join(", ") : "") ||
+        data?.message ||
+        error?.message ||
+        "Could not save student";
+      console.error("Error creating student:", data ?? error);
+      toast.error(detail);
+      throw error;
     }
   };
 
@@ -329,13 +344,26 @@ export function StudentsPage() {
         toast.error("Configure this class's tuition in Classes & Subjects before enrolling students");
         return;
       }
-      const feesPaid = Number(student.feesPaid) || 0;
+      // The "amount the student pays now" field is the running TOTAL paid so far
+      // (tuition + registration). Split it: keep the registration portion already
+      // recorded, apply the rest to tuition, so the backend invariant
+      // feesPaid = tuitionFeePaid + registrationFeePaid is preserved.
+      const registrationRequired = Boolean(classObj.registrationFeeRequired);
+      const registrationFeeAmount = registrationRequired ? Number(classObj.registrationFeeAmount) || 0 : 0;
+      // The fee field holds the TOTAL paid so far (tuition + registration).
+      const totalPaid = Math.max(0, Number(student.upfrontPayment) || 0);
+      // Registration is settled first, up to the amount the class requires; the
+      // remainder is applied to tuition. This keeps tuitionFeePaid +
+      // registrationFeePaid == totalPaid, the invariant the backend relies on.
+      const registrationPaid = registrationRequired ? Math.min(registrationFeeAmount, totalPaid) : 0;
+      const tuitionFeePaid = Math.max(0, totalPaid - registrationPaid);
+      const feesPaid = tuitionFeePaid + registrationPaid;
       const feesDue = Math.max(0, totalFee - feesPaid);
 
       const studentData = {
         fullName: student.fullName.trim(),
         gender: student.gender,
-        section: student.section || "englophone",
+        section: classObj.schoolSection || student.section || "englophone",
         dob: student.dob,
         classId: student.classId,
         department: student.department,
@@ -348,8 +376,17 @@ export function StudentsPage() {
         feesDue,
         tuitionFee: classObj.tuitionFee,
         tuitionInstallments: classObj.tuitionInstallments,
-        registrationFeeRequired: classObj.registrationFeeRequired,
-        registrationFeeAmount: classObj.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
+        tuitionFeePaid,
+        tuitionInstallmentsPaid: Number(student.tuitionInstallmentsPaid) || 0,
+        firstInstallment: Number(student.firstInstallment) || 0,
+        secondInstallment: Number(student.secondInstallment) || 0,
+        thirdInstallment: Number(student.thirdInstallment) || 0,
+        registrationRequirements: Array.isArray(student.registrationRequirements)
+          ? student.registrationRequirements
+          : [],
+        registrationFeeRequired: registrationRequired,
+        registrationFeeAmount,
+        registrationFeePaid: registrationPaid,
       };
 
       console.log("🔄 Updating student with ID:", student.id);
@@ -762,7 +799,12 @@ export function StudentsPage() {
                           <button
                             onClick={() => {
                               console.log("📝 Editing student:", s);
-                              setEditing(s);
+                              // The fee field ("amount the student pays now") is the
+                              // running total paid so far. Pre-fill it from the record so
+                              // the user sees and can edit the amount already paid.
+                              const alreadyPaid = Number(s.feesPaid) || 0
+                                || (Number(s.tuitionFeePaid) || 0) + (Number(s.registrationFeePaid) || 0);
+                              setEditing({ ...s, upfrontPayment: alreadyPaid });
                             }}
                             className="size-8 grid place-items-center rounded-lg hover:bg-stone-100 text-black/60"
                           >
@@ -871,7 +913,8 @@ export function StudentsPage() {
             photoUrl: "",
             registrationDate: new Date().toISOString().slice(0, 10),
             feesPaid: 0,
-            feesDue: 0
+            feesDue: 0,
+            upfrontPayment: 0,
           }}
           classes={classes}
           mode="create"
@@ -895,7 +938,7 @@ export function StudentsPage() {
 }
 
 // Student Dialog Component
-function StudentDialog({
+export function StudentDialog({
   initial,
   classes,
   mode,
@@ -1151,6 +1194,32 @@ function StudentDialog({
                   <p>Registration fee <strong className="block text-sm">{registrationRequired ? `${registrationAmount.toLocaleString()} XAF required` : "Not required"}</strong></p>
                   <p>Total required <strong className="block text-sm">{(tuitionFee + registrationAmount).toLocaleString()} XAF</strong></p>
                 </div>
+                <div className="mt-3 border-t border-blue-200/60 pt-3">
+                  <Field label="Amount the student pays now (XAF)">
+                    <input
+                      type="number"
+                      min={0}
+                      max={tuitionFee + registrationAmount}
+                      step={500}
+                      value={Number(form.upfrontPayment) || 0}
+                      onChange={(e) => set("upfrontPayment", Math.max(0, Number(e.target.value) || 0) as any)}
+                      className={inputCls}
+                      placeholder="e.g. 25000"
+                    />
+                  </Field>
+                  {(() => {
+                    const totalRequired = tuitionFee + registrationAmount;
+                    const paidNow = Math.max(0, Number(form.upfrontPayment) || 0);
+                    const balance = Math.max(0, totalRequired - paidNow);
+                    return (
+                      <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+                        <p className="rounded-lg bg-white/70 px-3 py-2">Paid now <strong className="block text-sm text-green-700">{paidNow.toLocaleString()} XAF</strong></p>
+                        <p className="rounded-lg bg-white/70 px-3 py-2">Balance left <strong className={`block text-sm ${balance > 0 ? "text-red-600" : "text-green-700"}`}>{balance.toLocaleString()} XAF{balance === 0 && totalRequired > 0 ? " · Fully paid" : ""}</strong></p>
+                      </div>
+                    );
+                  })()}
+                  <p className="mt-2 text-xs text-black/55">Type what the student pays during registration — the balance updates live and is saved with the student.</p>
+                </div>
               </div>
             ) : (
               <p className="rounded-lg bg-stone-50 p-4 text-sm text-black/50">Choose a class to see its tuition and registration requirements.</p>
@@ -1244,6 +1313,8 @@ function StudentDialog({
               <ReviewItem label="Installments" value={`${installmentCount} equal payments`} />
               <ReviewItem label="Registration fee" value={registrationRequired ? `${registrationAmount.toLocaleString()} XAF required` : "Not required"} />
               <ReviewItem label="Total required" value={`${(tuitionFee + registrationAmount).toLocaleString()} XAF`} />
+              <ReviewItem label="Paid at registration" value={`${Math.max(0, Number(form.upfrontPayment) || 0).toLocaleString()} XAF`} />
+              <ReviewItem label="Balance left" value={`${Math.max(0, tuitionFee + registrationAmount - (Math.max(0, Number(form.upfrontPayment) || 0))).toLocaleString()} XAF`} />
             </div>
             <p className="text-xs text-black/50">The fee plan is saved with the student. Payments can be recorded later under Fees & Finance.</p>
           </section>
