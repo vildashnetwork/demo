@@ -183,6 +183,8 @@ export function ClassesPage() {
           tuitionInstallments: Number(c.tuitionInstallments) || 1,
           registrationFeeRequired: Boolean(c.registrationFeeRequired),
           registrationFeeAmount: Number(c.registrationFeeAmount) || 0,
+          tuitionInstallmentAmounts: Array.isArray(c.tuitionInstallmentAmounts) ? c.tuitionInstallmentAmounts.map(Number) : [],
+          registrationRequirements: Array.isArray(c.registrationRequirements) ? c.registrationRequirements : [],
         }));
         setClasses(mappedClasses);
       }
@@ -345,6 +347,11 @@ export function ClassesPage() {
         tuitionInstallments: Number(schoolClass.tuitionInstallments),
         registrationFeeRequired: schoolClass.registrationFeeRequired,
         registrationFeeAmount: schoolClass.registrationFeeRequired ? Number(schoolClass.registrationFeeAmount) : 0,
+        // Persist installment amounts + registration requirements (see SchoolClass schema)
+        tuitionInstallmentAmounts: (schoolClass.tuitionInstallmentAmounts || []).map((a) => Number(a) || 0),
+        registrationRequirements: (schoolClass.registrationRequirements || [])
+          .map((r) => ({ id: r.id, label: String(r.label ?? "").trim() }))
+          .filter((r) => r.label !== ""),
       };
 
       console.log("Class data to save:", classData);
@@ -1088,13 +1095,16 @@ function ClassDialog({
     }
     form.tuitionInstallmentAmounts = amounts;
 
-    // Build requirement objects from the dynamic labels
-    form.registrationRequirements = requirementLabels.map((label, i) => ({
-      id: form.registrationRequirements && form.registrationRequirements.length > i
-        ? form.registrationRequirements[i].id
-        : "req_" + Date.now() + "_" + i,
-      label: label.trim(),
-    }));
+    // Build requirement objects from the dynamic labels (drop empty rows —
+    // the schema requires a non-empty label, and blanks would fail the save)
+    form.registrationRequirements = requirementLabels
+      .map((label, i) => ({
+        id: form.registrationRequirements && form.registrationRequirements.length > i
+          ? form.registrationRequirements[i].id
+          : "req_" + Date.now() + "_" + i,
+        label: label.trim(),
+      }))
+      .filter((r) => r.label.length > 0);
 
     setSaving(true);
     try {
