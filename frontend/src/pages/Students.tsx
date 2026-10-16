@@ -79,6 +79,29 @@ const mapStudents = (rows: any[] = []): Student[] => rows.map((student: any) => 
   section: student.section || "englophone",
 }));
 
+// ---------------------------------------------------------------------
+// Registration requirements
+// ---------------------------------------------------------------------
+type Requirement = { id: string; label: string; checked?: boolean };
+
+// The API may return requirements with `_id` instead of `id` (lean queries drop
+// the `id` virtual). Without a unique id every checkbox would toggle together,
+// so make sure each requirement always has a stable, unique id.
+const normalizeRequirements = (rows: any[] = []): Array<{ id: string; label: string }> =>
+  rows.map((r: any, index: number) => ({
+    id: String(r.id || r._id || `${index}-${String(r.label || "").toLowerCase().replace(/\s+/g, "-")}`),
+    label: r.label,
+  }));
+
+// The class's requirements, with this student's saved checks matched by id.
+// New requirements added to a class later therefore show up (unchecked) when
+// an existing student is edited.
+const mergeRequirements = (
+  classReqs: Array<{ id: string; label: string }> = [],
+  saved: Requirement[] = [],
+): Requirement[] =>
+  classReqs.map((r) => ({ ...r, checked: Boolean(saved.find((s) => s.id === r.id)?.checked) }));
+
 // The student list is paginated on the server: the browser only ever holds and
 // renders one page of rows (50 by default), which keeps this screen fast even
 // with 5,000+ students.
@@ -132,9 +155,7 @@ export function StudentsPage() {
       tuitionInstallments: Number(cls.tuitionInstallments) || 1,
       registrationFeeRequired: Boolean(cls.registrationFeeRequired),
       registrationFeeAmount: Number(cls.registrationFeeAmount) || 0,
-      registrationRequirements: Array.isArray(cls.registrationRequirements)
-        ? cls.registrationRequirements.map((r: any) => ({ id: r.id, label: r.label }))
-        : [],
+      registrationRequirements: normalizeRequirements(cls.registrationRequirements),
     }));
     setClasses(mappedClasses);
     return mappedClasses;
@@ -300,9 +321,9 @@ export function StudentsPage() {
         registrationFeeRequired: classObj.registrationFeeRequired,
         registrationFeeAmount: classObj.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
         registrationFeePaid: registrationPaid,
-        registrationRequirements: Array.isArray(student.registrationRequirements)
-          ? student.registrationRequirements.map((r) => ({ id: r.id, label: r.label, checked: Boolean(r.checked) }))
-          : [],
+        // Every requirement of the class, with the status toggled for this student.
+        registrationRequirements: mergeRequirements(classObj.registrationRequirements, student.registrationRequirements)
+          .map((r) => ({ id: r.id, label: r.label, checked: Boolean(r.checked) })),
       };
 
       console.log("➕ Creating new student");
@@ -391,9 +412,9 @@ export function StudentsPage() {
         firstInstallment: Number(student.firstInstallment) || 0,
         secondInstallment: Number(student.secondInstallment) || 0,
         thirdInstallment: Number(student.thirdInstallment) || 0,
-        registrationRequirements: Array.isArray(student.registrationRequirements)
-          ? student.registrationRequirements
-          : [],
+        // Every requirement of the class, with the status toggled for this student.
+        registrationRequirements: mergeRequirements(classObj.registrationRequirements, student.registrationRequirements)
+          .map((r) => ({ id: r.id, label: r.label, checked: Boolean(r.checked) })),
         registrationFeeRequired: registrationRequired,
         registrationFeeAmount,
         registrationFeePaid: registrationPaid,
@@ -777,6 +798,7 @@ export function StudentsPage() {
                 <th className="px-5 py-3">Fees Paid</th>
                 <th className="px-5 py-3">Fees Due</th>
                 <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3">Requirements</th>
                 {canEdit && <th className="px-5 py-3 text-right">Actions</th>}
               </tr>
             </thead>
@@ -802,6 +824,18 @@ export function StudentsPage() {
                       <span className={`text-xs px-2 py-1 rounded-full font-bold ${statusColor}`}>
                         {status}
                       </span>
+                    </td>
+                    <td className="px-5 py-3 text-xs">
+                      {(() => {
+                        const reqs = classObj?.registrationRequirements ?? [];
+                        if (!reqs.length) return <span className="text-black/30">—</span>;
+                        const met = mergeRequirements(reqs, s.registrationRequirements).filter((r) => r.checked).length;
+                        return (
+                          <span className={met === reqs.length ? "font-semibold text-green-700" : "text-black/60"}>
+                            {met}/{reqs.length}
+                          </span>
+                        );
+                      })()}
                     </td>
                     {canEdit && (
                       <td className="px-5 py-3 text-right">
@@ -837,7 +871,7 @@ export function StudentsPage() {
               })}
               {!listLoading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={canEdit ? 9 : 8} className="text-center py-12 text-black/40 text-sm">
+                  <td colSpan={canEdit ? 10 : 9} className="text-center py-12 text-black/40 text-sm">
                     No students match your filters.
                   </td>
                 </tr>
@@ -925,6 +959,7 @@ export function StudentsPage() {
             feesPaid: 0,
             feesDue: 0,
             upfrontPayment: 0,
+            registrationRequirements: mergeRequirements(classes[0]?.registrationRequirements, []),
           }}
           classes={classes}
           mode="create"
@@ -997,11 +1032,12 @@ export function StudentDialog({
       registrationFeeRequired: Boolean(classObj?.registrationFeeRequired),
       registrationFeeAmount: classObj?.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
       feesDue: Math.max(0, totalFee - (Number(current.feesPaid) || 0)),
-      // Load this class's registration requirements so each item can be toggled below.
-      registrationRequirements:
-        current.classId === classId && Array.isArray(current.registrationRequirements)
-          ? current.registrationRequirements
-          : (classObj?.registrationRequirements ?? []).map((r) => ({ id: r.id, label: r.label, checked: false })),
+      // Load every registration requirement of the selected class (all unchecked
+      // when the class changes) so each one can be toggled for this student.
+      registrationRequirements: mergeRequirements(
+        classObj?.registrationRequirements,
+        current.classId === classId ? current.registrationRequirements : [],
+      ),
     }));
   };
 
@@ -1115,7 +1151,12 @@ export function StudentDialog({
 
     setSaving(true);
     try {
-      await onSave(form);
+      // Always save the class's full requirement list, including the ones that
+      // were never toggled (they are saved as not provided yet).
+      await onSave({
+        ...form,
+        registrationRequirements: mergeRequirements(selectedClass?.registrationRequirements, form.registrationRequirements),
+      });
     } finally {
       setSaving(false);
     }
@@ -1237,36 +1278,43 @@ export function StudentDialog({
                 </div>
 
                 {(() => {
-                  const saved = Array.isArray(form.registrationRequirements) ? form.registrationRequirements : [];
-                  const list: NonNullable<Student["registrationRequirements"]> = saved.length
-                    ? saved
-                    : (selectedClass?.registrationRequirements ?? []).map((r) => ({ ...r, checked: false }));
-                  if (!list.length) return null;
+                  // All requirements of the selected class, with this student's status.
+                  const list = mergeRequirements(selectedClass?.registrationRequirements, form.registrationRequirements);
+                  const met = list.filter((r) => r.checked).length;
                   return (
                     <div className="mt-3 border-t border-blue-200/60 pt-3">
-                      <p className="font-bold text-[#121212]">Registration requirements</p>
-                      <p className="mt-1 text-xs text-black/55">Toggle each item once the student provides it — the status is saved with the student.</p>
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                        {list.map((req) => {
-                          const checked = Boolean(req.checked);
-                          return (
-                            <label key={req.id} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${checked ? "border-green-200 bg-green-50" : "border-white/70 bg-white/60"}`}>
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() =>
-                                  set(
-                                    "registrationRequirements",
-                                    list.map((r) => (r.id === req.id ? { ...r, checked: !checked } : r))
-                                  )
-                                }
-                                className="size-4 accent-green-600"
-                              />
-                              <span className={checked ? "font-semibold text-green-700" : "text-black/65"}>{req.label}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
+                      <p className="font-bold text-[#121212]">
+                        Registration requirements
+                        {list.length > 0 && <span className="ml-2 text-xs font-semibold text-black/50">{met}/{list.length} provided</span>}
+                      </p>
+                      {list.length === 0 ? (
+                        <p className="mt-1 text-xs text-black/55">No registration requirements are configured for this class.</p>
+                      ) : (
+                        <>
+                          <p className="mt-1 text-xs text-black/55">Toggle each item once the student provides it — the status is saved with the student.</p>
+                          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                            {list.map((req) => {
+                              const checked = Boolean(req.checked);
+                              return (
+                                <label key={req.id} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${checked ? "border-green-200 bg-green-50" : "border-white/70 bg-white/60"}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() =>
+                                      set(
+                                        "registrationRequirements",
+                                        list.map((r) => (r.id === req.id ? { ...r, checked: !checked } : r))
+                                      )
+                                    }
+                                    className="size-4 accent-green-600"
+                                  />
+                                  <span className={checked ? "font-semibold text-green-700" : "text-black/65"}>{req.label}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })()}
@@ -1365,6 +1413,16 @@ export function StudentDialog({
               <ReviewItem label="Total required" value={`${(tuitionFee + registrationAmount).toLocaleString()} XAF`} />
               <ReviewItem label="Paid at registration" value={`${Math.max(0, Number(form.upfrontPayment) || 0).toLocaleString()} XAF`} />
               <ReviewItem label="Balance left" value={`${Math.max(0, tuitionFee + registrationAmount - (Math.max(0, Number(form.upfrontPayment) || 0))).toLocaleString()} XAF`} />
+              {(() => {
+                const list = mergeRequirements(selectedClass?.registrationRequirements, form.registrationRequirements);
+                if (!list.length) return null;
+                return (
+                  <ReviewItem
+                    label="Requirements provided"
+                    value={`${list.filter((r) => r.checked).length} of ${list.length}`}
+                  />
+                );
+              })()}
             </div>
             <p className="text-xs text-black/50">The fee plan is saved with the student. Payments can be recorded later under Fees & Finance.</p>
           </section>

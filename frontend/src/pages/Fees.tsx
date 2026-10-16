@@ -700,7 +700,7 @@ export function FeesPage() {
         if (createdId) {
           setRequirementChecks((prev) => {
             const next = { ...prev };
-            for (const req of classObj.registrationRequirements) {
+            for (const req of classObj.registrationRequirements || []) {
               if (newStudentChecks[req.id]) next[checkKey(createdId, req.id)] = true;
             }
             return next;
@@ -933,6 +933,7 @@ export function FeesPage() {
   );
 
   const newStudentClass = newStudentForm.classId ? classMap.get(newStudentForm.classId) : undefined;
+  const newStudentReqs = newStudentClass?.registrationRequirements ?? [];
 
   return (
     <div className="mx-auto w-full max-w-[1680px] space-y-4 sm:space-y-6 2xl:space-y-8">
@@ -1483,7 +1484,7 @@ export function FeesPage() {
                     Registration requirements for {newStudentClass.className}
                   </label>
                   <div className="space-y-2">
-                    {newStudentClass.registrationRequirements.map((req) => (
+                    {newStudentReqs.map((req) => (
                       <label key={req.id} className="flex items-center gap-2 rounded-lg border border-stone-200 p-2">
                         <input
                           type="checkbox"
@@ -1494,7 +1495,7 @@ export function FeesPage() {
                         <span className={newStudentChecks[req.id] ? "text-brand font-medium" : "text-black/60"}>{req.label}</span>
                       </label>
                     ))}
-                    {newStudentClass.registrationRequirements.length === 0 && (
+                    {newStudentReqs.length === 0 && (
                       <p className="text-xs text-black/40">No registration requirements configured for this class</p>
                     )}
                   </div>
@@ -1525,8 +1526,8 @@ export function FeesPage() {
                     <p>Total required: {getClassTotalFee(newStudentClass).toLocaleString()} XAF</p>
                     <p>
                       Requirements confirmed:{" "}
-                      {newStudentClass.registrationRequirements.filter((r) => newStudentChecks[r.id]).length}/
-                      {newStudentClass.registrationRequirements.length}
+                      {newStudentReqs.filter((r) => newStudentChecks[r.id]).length}/
+                      {newStudentReqs.length}
                     </p>
                   </div>
                 </div>
