@@ -107,10 +107,21 @@ const schoolClassSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    registrationFeeAmount: {
-        type: Number,
-        min: [0, "Registration fee cannot be negative"],
-        default: 0
+    
+    // One amount per tuition installment (e.g. [20000, 20000, 20000] for 3 installments of 60000)
+    tuitionInstallmentAmounts: {
+      type: [Number],
+      default: []
+    },
+    // Registration requirements (e.g. ["Uniform", "Exercise books", "ID card"])
+    registrationRequirements: {
+      type: [
+        {
+          id: { type: String, required: true },
+          label: { type: String, required: true, trim: true },
+        },
+      ],
+      default: []
     },
     isActive: {
         type: Boolean,

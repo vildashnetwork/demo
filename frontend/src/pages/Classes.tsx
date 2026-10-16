@@ -34,6 +34,10 @@ interface SchoolClass {
   tuitionInstallments: number;
   registrationFeeRequired: boolean;
   registrationFeeAmount: number;
+  // One amount per tuition installment (e.g. [20000, 20000, 20000] for 3 installments of 60000)
+  tuitionInstallmentAmounts?: number[];
+  // Registration requirements (e.g. ["Uniform", "Exercise books", "ID card"])
+  registrationRequirements?: Array<{ id: string; label: string }>;
 }
 
 interface Teacher {
@@ -993,6 +997,48 @@ function ClassDialog({
   const set = <K extends keyof SchoolClass>(k: K, v: SchoolClass[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  // State for installment amounts and registration requirements
+  const [installmentAmounts, setInstallmentAmounts] = useState<number[]>(() => {
+    if (initial.tuitionInstallmentAmounts && Array.isArray(initial.tuitionInstallmentAmounts)) {
+      return initial.tuitionInstallmentAmounts.map(a => Number(a) || 0);
+    }
+    return new Array(initial.tuitionInstallments ?? 1).fill(0);
+  });
+  const [requirementLabels, setRequirementLabels] = useState<string[]>(() => {
+    if (initial.registrationRequirements && Array.isArray(initial.registrationRequirements)) {
+      return initial.registrationRequirements.map(r => r.label);
+    }
+    return [];
+  });
+
+  // Add a new installment field
+  const addInstallment = () => {
+    if (form.tuitionInstallments > installmentAmounts.length) {
+      setInstallmentAmounts([...installmentAmounts, 0]);
+    } else {
+      toast.error(`Maximum ${form.tuitionInstallments} installments allowed`);
+    }
+  };
+
+  // Remove an installment field
+  const removeInstallment = (index: number) => {
+    if (installmentAmounts.length > 1) {
+      setInstallmentAmounts(installmentAmounts.filter((_, i) => i !== index));
+    }
+  };
+
+  // Add a new registration requirement field
+  const addRequirement = () => {
+    setRequirementLabels([...requirementLabels, ""]);
+  };
+
+  // Remove a registration requirement field
+  const removeRequirement = (index: number) => {
+    if (requirementLabels.length > 0) {
+      setRequirementLabels(requirementLabels.filter((_, i) => i !== index));
+    }
+  };
+
   const classNames = ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower 6th", "Upper 6th", "Graduated"];
   const departments = [
     "General", "Science", "Arts", "Commercial", "Electrical & Electronics",
@@ -1035,6 +1081,20 @@ function ClassDialog({
       return;
     }
 
+    // Build array fields from the dynamic inputs
+    const amounts = installmentAmounts.slice(0, form.tuitionInstallments);
+    while (amounts.length < form.tuitionInstallments) {
+      amounts.push(0);
+    }
+    form.tuitionInstallmentAmounts = amounts;
+
+    // Build requirement objects from the dynamic labels
+    form.registrationRequirements = requirementLabels.map((label, i) => ({
+      id: form.registrationRequirements && form.registrationRequirements.length > i
+        ? form.registrationRequirements[i].id
+        : "req_" + Date.now() + "_" + i,
+      label: label.trim(),
+    }));
 
     setSaving(true);
     try {
@@ -1167,7 +1227,93 @@ function ClassDialog({
               required
             />
           </Field>
-          <label className="flex items-center gap-3 rounded-lg border border-stone-200 px-3 py-2.5 sm:col-span-2">
+          <div className="mt-3">
+            <div className="text-[10px] uppercase tracking-widest font-bold text-black/50 mb-2">
+              Installment Amounts ({form.tuitionInstallments} installments)
+            </div>
+            <div className="space-y-2">
+              {installmentAmounts.map((amount, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    step={500}
+                    value={amount}
+                    onChange={(e) => {
+                      const next = [...installmentAmounts];
+                      next[idx] = Math.max(0, Number(e.target.value) || 0);
+                      setInstallmentAmounts(next);
+                    }}
+                    className="w-24 px-2 py-1 rounded-lg border border-stone-200 text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand/30"
+                  />
+                  <span className="text-xs text-black/40">Amount (XAF)</span>
+                  {form.tuitionInstallments > 1 && installmentAmounts.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeInstallment(idx)}
+                      className="text-xs text-red-500 hover:text-red-700"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              {installmentAmounts.length < form.tuitionInstallments && (
+                <button
+                  type="button"
+                  onClick={addInstallment}
+                  className="text-xs text-brand hover:text-brand/80 underline"
+                >
+                  + Add another installment
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-black/40 mt-1">
+              The total of these installment amounts should equal the Student Tuition amount above.
+            </p>
+          </div>
+          <div className="mt-3">
+            <div className="text-[10px] uppercase tracking-widest font-bold text-black/50 mb-2">
+              Registration Requirements
+            </div>
+            <div className="space-y-2">
+              {requirementLabels.map((label, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={label}
+                    onChange={(e) => {
+                      const next = [...requirementLabels];
+                      next[idx] = e.target.value;
+                      setRequirementLabels(next);
+                    }}
+                    placeholder="e.g. Uniform, Exercise books, ID card"
+                    className="w-48 px-2 py-1 rounded-lg border border-stone-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
+                  />
+                  <span className="text-xs text-black/40">label</span>
+                  {requirementLabels.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeRequirement(idx)}
+                      className="text-xs text-red-500 hover:text-red-700"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              {requirementLabels.length === 0 && (
+                <button
+                  type="button"
+                  onClick={addRequirement}
+                  className="text-xs text-brand hover:text-brand/80 underline"
+                >
+                  + Add a registration requirement
+                </button>
+              )}
+            </div>
+          </div>
+          <label className="flex items-center gap-3 rounded-lg border border-stone-200 px-3 py-2.5 sm:col-span-2 mt-3">
             <input
               type="checkbox"
               checked={form.registrationFeeRequired}

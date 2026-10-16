@@ -111,6 +111,13 @@ const studentschema = new mongoose.Schema({
         type: Number,
         min: 0
     },
+    // Registration requirement checklist copied from the class, with this student's status
+    registrationRequirements: [{
+        _id: false,
+        id: { type: String, required: true },
+        label: { type: String, required: true },
+        checked: { type: Boolean, default: false }
+    }],
     feePayments: [{
         _id: false,
         feeType: { type: String, enum: ["tuition", "registration"], required: true },

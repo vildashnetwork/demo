@@ -55,6 +55,10 @@ export interface Class {
   tuitionInstallments: number;
   registrationFeeRequired: boolean;
   registrationFeeAmount: number;
+  // One amount per tuition installment (e.g. [20000, 20000, 20000] for 3 installments of 60000)
+  tuitionInstallmentAmounts?: number[];
+  // Registration requirements (e.g. ["Uniform", "Exercise books", "ID card"])
+  registrationRequirements?: Array<{ id: string; label: string }>;
 }
 
 export function getClassTotalFee(schoolClass?: Class): number {
@@ -128,6 +132,9 @@ export function StudentsPage() {
       tuitionInstallments: Number(cls.tuitionInstallments) || 1,
       registrationFeeRequired: Boolean(cls.registrationFeeRequired),
       registrationFeeAmount: Number(cls.registrationFeeAmount) || 0,
+      registrationRequirements: Array.isArray(cls.registrationRequirements)
+        ? cls.registrationRequirements.map((r: any) => ({ id: r.id, label: r.label }))
+        : [],
     }));
     setClasses(mappedClasses);
     return mappedClasses;
@@ -293,6 +300,9 @@ export function StudentsPage() {
         registrationFeeRequired: classObj.registrationFeeRequired,
         registrationFeeAmount: classObj.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
         registrationFeePaid: registrationPaid,
+        registrationRequirements: Array.isArray(student.registrationRequirements)
+          ? student.registrationRequirements.map((r) => ({ id: r.id, label: r.label, checked: Boolean(r.checked) }))
+          : [],
       };
 
       console.log("➕ Creating new student");
@@ -987,6 +997,11 @@ export function StudentDialog({
       registrationFeeRequired: Boolean(classObj?.registrationFeeRequired),
       registrationFeeAmount: classObj?.registrationFeeRequired ? classObj.registrationFeeAmount : 0,
       feesDue: Math.max(0, totalFee - (Number(current.feesPaid) || 0)),
+      // Load this class's registration requirements so each item can be toggled below.
+      registrationRequirements:
+        current.classId === classId && Array.isArray(current.registrationRequirements)
+          ? current.registrationRequirements
+          : (classObj?.registrationRequirements ?? []).map((r) => ({ id: r.id, label: r.label, checked: false })),
     }));
   };
 
@@ -1220,6 +1235,41 @@ export function StudentDialog({
                   })()}
                   <p className="mt-2 text-xs text-black/55">Type what the student pays during registration — the balance updates live and is saved with the student.</p>
                 </div>
+
+                {(() => {
+                  const saved = Array.isArray(form.registrationRequirements) ? form.registrationRequirements : [];
+                  const list: NonNullable<Student["registrationRequirements"]> = saved.length
+                    ? saved
+                    : (selectedClass?.registrationRequirements ?? []).map((r) => ({ ...r, checked: false }));
+                  if (!list.length) return null;
+                  return (
+                    <div className="mt-3 border-t border-blue-200/60 pt-3">
+                      <p className="font-bold text-[#121212]">Registration requirements</p>
+                      <p className="mt-1 text-xs text-black/55">Toggle each item once the student provides it — the status is saved with the student.</p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        {list.map((req) => {
+                          const checked = Boolean(req.checked);
+                          return (
+                            <label key={req.id} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${checked ? "border-green-200 bg-green-50" : "border-white/70 bg-white/60"}`}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  set(
+                                    "registrationRequirements",
+                                    list.map((r) => (r.id === req.id ? { ...r, checked: !checked } : r))
+                                  )
+                                }
+                                className="size-4 accent-green-600"
+                              />
+                              <span className={checked ? "font-semibold text-green-700" : "text-black/65"}>{req.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
               <p className="rounded-lg bg-stone-50 p-4 text-sm text-black/50">Choose a class to see its tuition and registration requirements.</p>
